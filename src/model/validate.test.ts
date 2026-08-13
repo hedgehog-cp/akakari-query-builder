@@ -79,3 +79,57 @@ describe("validateQuery", () => {
     }), COLUMNS)).toEqual([]);
   });
 });
+
+describe("空グループ・空条件の検出", () => {
+  it("子が0件のグループを警告する", () => {
+    expect(codes(withOutput({ kind: "group", op: "AND", children: [] }))).toContain("empty-group");
+  });
+
+  it("値が空の一致条件を警告する", () => {
+    expect(codes(withOutput({
+      kind: "column", column: "ランク", cond: { kind: "eq", values: [] },
+    }))).toContain("empty-value");
+  });
+
+  it("値が空文字列だけの含む条件を警告する", () => {
+    expect(codes(withOutput({
+      kind: "column", column: "攻撃艦.名前", cond: { kind: "contains", values: [""] },
+    }))).toContain("empty-value");
+  });
+
+  it("入れ子のグループも検査する", () => {
+    const q = withOutput({
+      kind: "group", op: "AND",
+      children: [{ kind: "group", op: "OR", children: [] }],
+    });
+    expect(codes(q)).toContain("empty-group");
+  });
+
+  it("属性が空の装備スロット条件を警告する", () => {
+    expect(codes(withOutput({
+      kind: "slot", side: "攻撃艦", quantity: { kind: "any" }, attrs: [],
+    }))).toContain("empty-group");
+  });
+
+  it("値が埋まっていれば警告しない", () => {
+    expect(codes(withOutput({
+      kind: "column", column: "ランク", cond: { kind: "eq", values: ["勝利S"] },
+    }))).not.toContain("empty-value");
+  });
+
+  it("攻撃艦装備の空グループも警告する", () => {
+    const q: Query = {
+      ...emptyQuery("akakari-hougeki"),
+      attackerItems: { kind: "group", op: "AND", children: [] },
+    };
+    expect(validateQuery(q, COLUMNS).map((w) => w.code)).toContain("empty-group");
+  });
+
+  it("装備数の条件が空なら警告する", () => {
+    const q: Query = {
+      ...emptyQuery("akakari-hougeki"),
+      attackerItems: { kind: "count", count: { kind: "eq", values: [] }, cond: { kind: "exists" } },
+    };
+    expect(validateQuery(q, COLUMNS).map((w) => w.code)).toContain("empty-value");
+  });
+});

@@ -1,27 +1,62 @@
 import { ITEM_ATTRS, type CountItemNode, type ItemAttr, type ItemCond } from "../model/types";
 import { master } from "../master/load";
 import { ValueCondEditor, defaultCond } from "./value-cond-editor";
+import { RuleGroup } from "./rule-group";
 
 /** 装備の条件は CSV の列ではないので、列メタは持たない。 */
 const NO_COLUMN = undefined;
 
-function ItemCondEditor(props: {
-  cond: ItemCond;
-  onChange: (c: ItemCond) => void;
-  onRemove?: () => void;
-}) {
-  const cond = props.cond;
+function newAttrCond(): ItemCond {
+  return { kind: "attr", attr: "装備名", cond: defaultCond("一致", NO_COLUMN) };
+}
 
+/**
+ * RuleGroup の行キー。オブジェクト参照ごとに一意な番号を割り当てて使い回す。
+ * reorder() は配列内の要素を並べ替えるだけで個々のオブジェクトの参照は
+ * 変えないため、ドラッグでの並べ替えでは同じキーが保たれる(SortableJSのDOM操作と
+ * Preactの再描画がズレて見た目が更新されなくなる問題を防ぐ)。一方、値や条件の
+ * 編集はスプレッド構文で新しいオブジェクトを作る(`{ ...cond, ... }` など)ため、
+ * 内容が変わった行には新しいキーが振られる。ItemCond と CountItemNode は別の型
+ * なので、WeakMap も型ごとに分けて持つ。
+ */
+const itemCondKeys = new WeakMap<ItemCond, number>();
+let nextItemCondKey = 0;
+function itemCondKeyOf(cond: ItemCond): number {
+  let key = itemCondKeys.get(cond);
+  if (key === undefined) {
+    key = nextItemCondKey++;
+    itemCondKeys.set(cond, key);
+  }
+  return key;
+}
+
+const countNodeKeys = new WeakMap<CountItemNode, number>();
+let nextCountNodeKey = 0;
+function countNodeKeyOf(node: CountItemNode): number {
+  let key = countNodeKeys.get(node);
+  if (key === undefined) {
+    key = nextCountNodeKey++;
+    countNodeKeys.set(node, key);
+  }
+  return key;
+}
+
+function renderItemCond(
+  cond: ItemCond,
+  depth: number,
+  onChange: (c: ItemCond) => void,
+  onRemove: (() => void) | undefined,
+) {
   if (cond.kind === "exists") {
     return (
       <div class="flex items-center gap-1 py-0.5">
         <span class="text-xs">装備が存在する</span>
         <button type="button" class="border border-emp-1 rounded px-2 py-0.5 text-xs hover:bg-emp-4"
-          onClick={() => props.onChange({ kind: "attr", attr: "装備名", cond: defaultCond("一致", NO_COLUMN) })}>
+          onClick={() => onChange(newAttrCond())}>
           条件を付ける
         </button>
-        {props.onRemove !== undefined && (
-          <button type="button" class="text-gray-500 hover:text-red-600 px-1" onClick={props.onRemove}>✕</button>
+        {onRemove !== undefined && (
+          <button type="button" class="text-gray-500 hover:text-red-600 px-1" onClick={onRemove}>✕</button>
         )}
       </div>
     );
@@ -32,7 +67,7 @@ function ItemCondEditor(props: {
     return (
       <div class="flex flex-wrap items-center gap-1 py-0.5">
         <select class="border border-gray-300 rounded px-1" value={cond.attr}
-          onChange={(e) => props.onChange({
+          onChange={(e) => onChange({
             kind: "attr",
             attr: (e.target as HTMLSelectElement).value as ItemAttr,
             cond: defaultCond("一致", NO_COLUMN),
@@ -45,14 +80,14 @@ function ItemCondEditor(props: {
             : cond.attr === "装備ID" ? { kind: "equipId" }
             : null
           }
-          onChange={(c) => props.onChange({ ...cond, cond: c })} />
+          onChange={(c) => onChange({ ...cond, cond: c })} />
         {isCategory && (
           <datalist id="equip-categories">
             {master.equipTypes.map((t) => <option key={t.id} value={t.name} />)}
           </datalist>
         )}
-        {props.onRemove !== undefined && (
-          <button type="button" class="text-gray-500 hover:text-red-600 px-1" onClick={props.onRemove}>✕</button>
+        {onRemove !== undefined && (
+          <button type="button" class="text-gray-500 hover:text-red-600 px-1" onClick={onRemove}>✕</button>
         )}
       </div>
     );
@@ -60,100 +95,79 @@ function ItemCondEditor(props: {
 
   // group
   return (
-    <div class="border-l-2 border-emp-1 pl-2 ml-1">
-      <div class="flex items-center gap-1 py-0.5">
-        <select class="border border-gray-300 rounded px-1" value={cond.op}
-          onChange={(e) => {
-            const op = (e.target as HTMLSelectElement).value as "AND" | "OR" | "NOT";
-            props.onChange({ kind: "group", op, children: op === "NOT" ? cond.children.slice(0, 1) : cond.children });
-          }}>
-          <option value="AND">すべて満たす (AND)</option>
-          <option value="OR">いずれか満たす (OR)</option>
-          <option value="NOT">満たさない (NOT)</option>
-        </select>
-        {(cond.op !== "NOT" || cond.children.length === 0) && (
-          <button type="button" class="border border-emp-1 rounded px-2 py-0.5 text-xs hover:bg-emp-4"
-            onClick={() => props.onChange({
-              ...cond,
-              children: [...cond.children, { kind: "attr", attr: "装備名", cond: defaultCond("一致", NO_COLUMN) }],
-            })}>
-            + 条件
-          </button>
-        )}
-        {props.onRemove !== undefined && (
-          <button type="button" class="text-gray-500 hover:text-red-600 px-1 ml-auto" onClick={props.onRemove}>✕</button>
-        )}
-      </div>
-      {cond.children.map((c, i) => (
-        <ItemCondEditor key={i} cond={c}
-          onChange={(n) => {
-            const children = [...cond.children];
-            children[i] = n;
-            props.onChange({ ...cond, children });
-          }}
-          onRemove={() => props.onChange({ ...cond, children: cond.children.filter((_, j) => j !== i) })} />
-      ))}
-    </div>
+    <RuleGroup<ItemCond>
+      op={cond.op}
+      children={cond.children}
+      depth={depth}
+      onOpChange={(op) => {
+        const children = op === "NOT" ? cond.children.slice(0, 1) : cond.children;
+        onChange({ kind: "group", op, children });
+      }}
+      onChildrenChange={(children) => onChange({ ...cond, children })}
+      addRuleActions={[{
+        label: "+ 条件",
+        onClick: () => onChange({ ...cond, children: [...cond.children, newAttrCond()] }),
+      }]}
+      onAddGroup={() => onChange({ ...cond, children: [...cond.children, { kind: "group", op: "OR", children: [] }] })}
+      onRemove={onRemove}
+      renderChild={(child, onChildChange, onChildRemove) =>
+        renderItemCond(child, depth + 1, onChildChange, onChildRemove)
+      }
+      keyOf={itemCondKeyOf}
+    />
   );
 }
 
-function CountNodeEditor(props: {
-  node: CountItemNode;
-  onChange: (n: CountItemNode) => void;
-  onRemove?: () => void;
-}) {
-  const node = props.node;
+function renderCountNode(
+  node: CountItemNode,
+  depth: number,
+  onChange: (n: CountItemNode) => void,
+  onRemove: (() => void) | undefined,
+) {
   if (node.kind === "count") {
     return (
       <div class="border border-gray-200 rounded p-2 my-1">
         <div class="flex flex-wrap items-center gap-1">
           <span class="text-xs">条件を満たすスロット数が</span>
           <ValueCondEditor column={NO_COLUMN} cond={node.count}
-            onChange={(c) => props.onChange({ ...node, count: c })} />
-          {props.onRemove !== undefined && (
-            <button type="button" class="text-gray-500 hover:text-red-600 px-1 ml-auto" onClick={props.onRemove}>✕</button>
+            onChange={(c) => onChange({ ...node, count: c })} />
+          {onRemove !== undefined && (
+            <button type="button" class="text-gray-500 hover:text-red-600 px-1 ml-auto" onClick={onRemove}>✕</button>
           )}
         </div>
         <div class="pl-3">
-          <ItemCondEditor cond={node.cond} onChange={(c) => props.onChange({ ...node, cond: c })} />
+          {renderItemCond(node.cond, depth + 1, (c) => onChange({ ...node, cond: c }), undefined)}
         </div>
       </div>
     );
   }
+
   return (
-    <div class="border-l-2 border-emp-1 pl-2 ml-1">
-      <div class="flex items-center gap-1 py-0.5">
-        <select class="border border-gray-300 rounded px-1" value={node.op}
-          onChange={(e) => {
-            const op = (e.target as HTMLSelectElement).value as "AND" | "OR" | "NOT";
-            props.onChange({ kind: "group", op, children: op === "NOT" ? node.children.slice(0, 1) : node.children });
-          }}>
-          <option value="AND">すべて満たす (AND)</option>
-          <option value="OR">いずれか満たす (OR)</option>
-          <option value="NOT">満たさない (NOT)</option>
-        </select>
-        <button type="button" class="border border-emp-1 rounded px-2 py-0.5 text-xs hover:bg-emp-4"
-          onClick={() => props.onChange({
-            ...node,
-            children: [...node.children, {
-              kind: "count",
-              count: { kind: "cmp", op: "以上", value: 1 },
-              cond: { kind: "exists" },
-            }],
-          })}>
-          + 装備数の条件
-        </button>
-      </div>
-      {node.children.map((c, i) => (
-        <CountNodeEditor key={i} node={c}
-          onChange={(n) => {
-            const children = [...node.children];
-            children[i] = n;
-            props.onChange({ ...node, children });
-          }}
-          onRemove={() => props.onChange({ ...node, children: node.children.filter((_, j) => j !== i) })} />
-      ))}
-    </div>
+    <RuleGroup<CountItemNode>
+      op={node.op}
+      children={node.children}
+      depth={depth}
+      onOpChange={(op) => {
+        const children = op === "NOT" ? node.children.slice(0, 1) : node.children;
+        onChange({ kind: "group", op, children });
+      }}
+      onChildrenChange={(children) => onChange({ ...node, children })}
+      addRuleActions={[{
+        label: "+ 装備数の条件",
+        onClick: () => onChange({
+          ...node,
+          children: [...node.children, {
+            kind: "count", count: { kind: "cmp", op: "以上", value: 1 }, cond: { kind: "exists" },
+          }],
+        }),
+      }]}
+      onAddGroup={() => onChange({ ...node, children: [...node.children, { kind: "group", op: "OR", children: [] }] })}
+      onRemove={onRemove}
+      renderChild={(child, onChildChange, onChildRemove) =>
+        renderCountNode(child, depth + 1, onChildChange, onChildRemove)
+      }
+      keyOf={countNodeKeyOf}
+    />
   );
 }
 
@@ -177,7 +191,11 @@ export function ItemSection(props: {
           </button>
         ) : (
           <button type="button" class="text-xs text-gray-500 hover:text-red-600 ml-auto"
-            onClick={() => props.onChange(null)}>すべて消す</button>
+            onClick={() => {
+              if (confirm(`${props.title}の条件をすべて消します。よろしいですか?`)) props.onChange(null);
+            }}>
+            すべて消す
+          </button>
         )}
       </div>
       <p class="text-xs text-gray-500 mb-1">
@@ -189,9 +207,7 @@ export function ItemSection(props: {
         数えるのはメイン1〜4スロットと増設の計5枠です。<strong>メイン5スロット目は数に入りません</strong>
         (logbook の実装がそうなっています)。装備スロット条件なら装備1〜6の6枠を見られます。
       </p>
-      {props.node !== null && (
-        <CountNodeEditor node={props.node} onChange={props.onChange} />
-      )}
+      {props.node !== null && renderCountNode(props.node, 0, props.onChange, undefined)}
     </section>
   );
 }

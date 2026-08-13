@@ -3,6 +3,7 @@ import type { CompareOp, ValueCond } from "../model/types";
 import type { Column } from "../schema/catalog";
 import { NamePicker } from "./name-picker";
 import type { NameTarget } from "./name-target";
+import { isEmptyValueCond } from "../model/validate";
 
 export type CondOp = "一致" | "含む" | "正規表現" | CompareOp;
 
@@ -125,7 +126,9 @@ export function ValueCondEditor(props: {
       : "数値";
 
   return (
-    <div class="flex flex-wrap items-center gap-1">
+    <div class={`flex flex-wrap items-center gap-1 ${
+      isEmptyValueCond(props.cond) ? "border border-red-400 bg-red-50 rounded px-1 py-0.5" : ""
+    }`}>
       <select
         class="border border-gray-300 rounded px-1"
         value={op}

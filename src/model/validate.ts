@@ -1,4 +1,4 @@
-import type { OutputNode, Query, ValueCond } from "./types";
+import type { CountItemNode, ItemCond, OutputNode, Query, ValueCond } from "./types";
 import { expandOutput } from "./expand";
 import type { Column } from "../schema/catalog";
 import { master } from "../master/load";
@@ -6,7 +6,8 @@ import { nameTargetOf } from "../ui/name-target";
 
 export type WarningCode =
   | "enum" | "integer" | "pattern" | "empty-numeric"
-  | "regex-full-match" | "unknown-column" | "unknown-name";
+  | "regex-full-match" | "unknown-column" | "unknown-name"
+  | "empty-group" | "empty-value";
 
 export type Warning = { code: WarningCode; path: string; message: string };
 
@@ -16,6 +17,21 @@ const equipNames = new Set(master.equips.map((e) => e.name));
 /** description に「常に空欄」と書かれている列は、数値比較で 0 として扱われる。 */
 function isAlwaysEmpty(col: Column): boolean {
   return col.description?.includes("常に空欄") ?? false;
+}
+
+/** 値が未入力かどうか。UIで空のまま放置された条件を検出するために使う。 */
+export function isEmptyValueCond(cond: ValueCond): boolean {
+  switch (cond.kind) {
+    case "eq":
+      return cond.values.length === 0;
+    case "contains":
+    case "regex":
+      return cond.values.every((v) => v.trim() === "");
+    case "cmp":
+      return false;
+    case "group":
+      return cond.children.length === 0;
+  }
 }
 
 function checkValue(
@@ -90,11 +106,80 @@ function checkOutput(
   }
 }
 
+/** 展開前の木を対象に、空のグループ・空の値を検出する。 */
+function checkOutputEmpty(node: OutputNode, path: string, out: Warning[]): void {
+  switch (node.kind) {
+    case "column":
+      if (isEmptyValueCond(node.cond)) {
+        out.push({ code: "empty-value", path: `${path}.${node.column}`, message: `${node.column} の条件に値が入力されていません` });
+      }
+      return;
+    case "slot":
+      if (node.attrs.length === 0) {
+        out.push({ code: "empty-group", path, message: "装備スロット条件に属性が設定されていません" });
+        return;
+      }
+      node.attrs.forEach((a) => {
+        if (isEmptyValueCond(a.cond)) {
+          out.push({ code: "empty-value", path: `${path}.${a.attr}`, message: `${a.attr} の条件に値が入力されていません` });
+        }
+      });
+      return;
+    case "group":
+      if (node.children.length === 0) {
+        out.push({ code: "empty-group", path, message: "空のグループです。条件を追加するか削除してください" });
+        return;
+      }
+      node.children.forEach((c, i) => checkOutputEmpty(c, `${path}[${i}]`, out));
+      return;
+  }
+}
+
+function checkItemCondEmpty(cond: ItemCond, path: string, out: Warning[]): void {
+  switch (cond.kind) {
+    case "exists":
+      return;
+    case "attr":
+      if (isEmptyValueCond(cond.cond)) {
+        out.push({ code: "empty-value", path: `${path}.${cond.attr}`, message: `${cond.attr} の条件に値が入力されていません` });
+      }
+      return;
+    case "group":
+      if (cond.children.length === 0) {
+        out.push({ code: "empty-group", path, message: "空のグループです。条件を追加するか削除してください" });
+        return;
+      }
+      cond.children.forEach((c, i) => checkItemCondEmpty(c, `${path}[${i}]`, out));
+      return;
+  }
+}
+
+function checkCountItemEmpty(node: CountItemNode, path: string, out: Warning[]): void {
+  switch (node.kind) {
+    case "count":
+      if (isEmptyValueCond(node.count)) {
+        out.push({ code: "empty-value", path: `${path}.装備数`, message: "装備数の条件に値が入力されていません" });
+      }
+      checkItemCondEmpty(node.cond, `${path}.条件`, out);
+      return;
+    case "group":
+      if (node.children.length === 0) {
+        out.push({ code: "empty-group", path, message: "空のグループです。条件を追加するか削除してください" });
+        return;
+      }
+      node.children.forEach((c, i) => checkCountItemEmpty(c, `${path}[${i}]`, out));
+      return;
+  }
+}
+
 export function validateQuery(q: Query, columns: Column[]): Warning[] {
   const out: Warning[] = [];
   const map = new Map(columns.map((c) => [c.name, c]));
   if (q.output !== null) {
     checkOutput(expandOutput(q.output), map, "$.出力", out);
+    checkOutputEmpty(q.output, "$.出力", out);
   }
+  if (q.attackerItems !== null) checkCountItemEmpty(q.attackerItems, "$.攻撃艦装備", out);
+  if (q.defenderItems !== null) checkCountItemEmpty(q.defenderItems, "$.防御艦装備", out);
   return out;
 }
