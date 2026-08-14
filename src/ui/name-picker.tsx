@@ -1,4 +1,4 @@
-import { useMemo, useState } from "preact/hooks";
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { master, equipTypeName, isAbyssal, shipTypeName, ABYSSAL_MIN_SHIP_ID } from "../master/load";
 import { EQUIP_GROUPS, isOther } from "../master/groups";
 import type { NameTarget } from "./name-target";
@@ -42,6 +42,17 @@ export function NamePicker(props: {
   const [q, setQ] = useState("");
   const [picked, setPicked] = useState<(string | number)[]>(props.initial);
 
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    searchRef.current?.focus();
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") props.onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   const equipRows = useEquipRows(groupIndex, typeId, q);
   const shipRows = useShipRows(abyssal, typeId, q);
   const rows = isEquip ? equipRows : shipRows;
@@ -67,7 +78,7 @@ export function NamePicker(props: {
         onClick={(e) => e.stopPropagation()}>
         <div class="flex items-center gap-2 mb-2">
           <h3 class="font-bold">{isEquip ? "装備を選ぶ" : "艦を選ぶ"}</h3>
-          <input type="text" class="border border-gray-300 rounded px-2 flex-1"
+          <input type="text" ref={searchRef} class="border border-gray-300 rounded px-2 flex-1"
             placeholder={isEquip ? "名前で絞り込む" : "名前または読みで絞り込む"}
             value={q} onInput={(e) => setQ((e.target as HTMLInputElement).value)} />
           <button type="button" class="text-gray-500 hover:text-red-600 px-1" onClick={props.onClose}>✕</button>

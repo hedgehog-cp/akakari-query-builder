@@ -8,6 +8,7 @@ export type MapInfo = { area: number; no: number; name: string };
 export type MapArea = { id: number; name: string };
 
 export type Master = {
+  generatedAt: string;
   equips: Equip[];
   equipTypes: EquipType[];
   ships: Ship[];

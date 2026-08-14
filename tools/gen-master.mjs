@@ -12,6 +12,7 @@ const out = resolve(root, "web/src/master/master.json");
 const read = (name) => JSON.parse(readFileSync(resolve(src, name), "utf-8"));
 
 const master = {
+  generatedAt: new Date().toISOString(),
   equips: read("api_mst_slotitem.json").map((x) => ({
     id: x.api_id,
     name: x.api_name,

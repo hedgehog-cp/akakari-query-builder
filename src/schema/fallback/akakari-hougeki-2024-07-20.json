@@ -1,0 +1,1607 @@
+{
+  "id": "akakari-hougeki-2024-07-20",
+  "previous": "akakari-hougeki-2024-07-19",
+  "added": [
+    "装甲破砕"
+  ],
+  "removed": [],
+  "fields": [
+    {
+      "name": "No.",
+      "type": "integer",
+      "title": "通し番号",
+      "description": "CSV書き出し時に行へ付与される1始まりの連番. 戦闘データそのものではない.",
+      "constraints": {
+        "required": true,
+        "minimum": 1
+      }
+    },
+    {
+      "name": "日付",
+      "type": "datetime",
+      "title": "戦闘日時",
+      "format": "%Y/%m/%d %H:%M:%S",
+      "description": "戦闘開始時刻(ローカル時刻). CsvHelperが実行環境のカルチャで書き出すため, 日本語環境では yyyy/MM/dd H:mm:ss となり時はゼロ埋めされない. 他言語環境では異なる表記になりうる.",
+      "example": "2025/07/01 20:27:26"
+    },
+    {
+      "name": "海域",
+      "type": "string",
+      "title": "海域名",
+      "description": "出撃先の海域名. 演習など海域を持たない戦闘では空欄になりうる.",
+      "example": "ブルネイ泊地沖"
+    },
+    {
+      "name": "マス",
+      "type": "string",
+      "title": "マップとセル",
+      "description": "マップ番号とセル番号.",
+      "constraints": {
+        "pattern": "^マップ:\\d+-\\d+ セル:\\d+$"
+      },
+      "example": "マップ:7-1 セル:4"
+    },
+    {
+      "name": "出撃",
+      "type": "string",
+      "title": "出撃/ボスマス区分",
+      "description": "出撃直後のマスなら 出撃, ボスマスなら ボス, 両方なら 出撃&ボス. どちらでもなければ空欄.",
+      "constraints": {
+        "enum": [
+          "出撃",
+          "ボス",
+          "出撃&ボス"
+        ]
+      }
+    },
+    {
+      "name": "ランク",
+      "type": "string",
+      "title": "戦闘結果ランク",
+      "description": "夜戦に入る昼戦など, 結果が確定していない戦闘では空欄.",
+      "constraints": {
+        "enum": [
+          "完全勝利!!S",
+          "勝利S",
+          "勝利A",
+          "戦術的勝利B",
+          "戦術的敗北C",
+          "敗北D",
+          "敗北E"
+        ]
+      }
+    },
+    {
+      "name": "敵艦隊",
+      "type": "string",
+      "title": "敵艦隊名",
+      "description": "深海棲艦の艦隊名. カンマを含む値があるため引用符で囲まれることがある.",
+      "example": "深海5,500t級軽巡洋艦"
+    },
+    {
+      "name": "提督レベル",
+      "type": "integer",
+      "title": "司令部Lv",
+      "description": "この戦闘時点の提督レベル.",
+      "constraints": {
+        "minimum": 1
+      }
+    },
+    {
+      "name": "自陣形",
+      "type": "string",
+      "title": "自軍陣形",
+      "description": "api_formation[0]. 単縦陣〜警戒陣は通常艦隊, 第一〜第四警戒航行序列は連合艦隊で使う.",
+      "constraints": {
+        "enum": [
+          "単縦陣",
+          "複縦陣",
+          "輪形陣",
+          "梯形陣",
+          "単横陣",
+          "警戒陣",
+          "第一警戒航行序列",
+          "第二警戒航行序列",
+          "第三警戒航行序列",
+          "第四警戒航行序列"
+        ]
+      }
+    },
+    {
+      "name": "敵陣形",
+      "type": "string",
+      "title": "敵軍陣形",
+      "description": "api_formation[1].",
+      "constraints": {
+        "enum": [
+          "単縦陣",
+          "複縦陣",
+          "輪形陣",
+          "梯形陣",
+          "単横陣",
+          "警戒陣",
+          "第一警戒航行序列",
+          "第二警戒航行序列",
+          "第三警戒航行序列",
+          "第四警戒航行序列"
+        ]
+      }
+    },
+    {
+      "name": "自索敵",
+      "type": "string",
+      "title": "自軍索敵結果",
+      "description": "夜戦のみの戦闘では空欄.",
+      "constraints": {
+        "enum": [
+          "発見!",
+          "発見!索敵機未帰還機あり",
+          "発見できず…索敵機未帰還機あり",
+          "発見できず…",
+          "発見!(索敵機なし)",
+          "なし"
+        ]
+      }
+    },
+    {
+      "name": "敵索敵",
+      "type": "string",
+      "title": "敵軍索敵結果",
+      "description": "夜戦のみの戦闘では空欄.",
+      "constraints": {
+        "enum": [
+          "発見!",
+          "発見!索敵機未帰還機あり",
+          "発見できず…索敵機未帰還機あり",
+          "発見できず…",
+          "発見!(索敵機なし)",
+          "なし"
+        ]
+      }
+    },
+    {
+      "name": "制空権",
+      "type": "string",
+      "title": "制空状態",
+      "description": "航空戦が発生しない戦闘では空欄.",
+      "constraints": {
+        "enum": [
+          "制空権確保",
+          "航空優勢",
+          "航空互角",
+          "航空劣勢",
+          "制空権喪失"
+        ]
+      }
+    },
+    {
+      "name": "会敵",
+      "type": "string",
+      "title": "交戦形態",
+      "description": "全角のＴを用いる点に注意.",
+      "constraints": {
+        "enum": [
+          "同航戦",
+          "反航戦",
+          "Ｔ字有利",
+          "Ｔ字不利"
+        ]
+      }
+    },
+    {
+      "name": "自触接",
+      "type": "string",
+      "title": "自軍触接機",
+      "description": "触接した艦載機の名前. 触接していなければ空欄."
+    },
+    {
+      "name": "敵触接",
+      "type": "string",
+      "title": "敵軍触接機",
+      "description": "触接した艦載機の名前. 触接していなければ空欄."
+    },
+    {
+      "name": "自照明弾",
+      "type": "string",
+      "title": "自照明弾",
+      "description": "この形式では常に空欄. 書き出し側が値を出力しない. 照明弾は夜戦でのみ使用される."
+    },
+    {
+      "name": "敵照明弾",
+      "type": "string",
+      "title": "敵照明弾",
+      "description": "この形式では常に空欄. 書き出し側が値を出力しない. 照明弾は夜戦でのみ使用される."
+    },
+    {
+      "name": "戦闘種別",
+      "type": "string",
+      "title": "戦闘フェーズ種別",
+      "description": "このファイルがどの戦闘フェーズを記録したものかを表す. 1ファイル内では常に同じ値になる.",
+      "constraints": {
+        "enum": [
+          "砲撃戦"
+        ]
+      }
+    },
+    {
+      "name": "艦名1",
+      "type": "string",
+      "title": "自軍1番艦の名前",
+      "description": "出撃した自軍艦隊の編成. 空きスロットは空欄."
+    },
+    {
+      "name": "艦名2",
+      "type": "string",
+      "title": "自軍2番艦の名前",
+      "description": "出撃した自軍艦隊の編成. 空きスロットは空欄."
+    },
+    {
+      "name": "艦名3",
+      "type": "string",
+      "title": "自軍3番艦の名前",
+      "description": "出撃した自軍艦隊の編成. 空きスロットは空欄."
+    },
+    {
+      "name": "艦名4",
+      "type": "string",
+      "title": "自軍4番艦の名前",
+      "description": "出撃した自軍艦隊の編成. 空きスロットは空欄."
+    },
+    {
+      "name": "艦名5",
+      "type": "string",
+      "title": "自軍5番艦の名前",
+      "description": "出撃した自軍艦隊の編成. 空きスロットは空欄."
+    },
+    {
+      "name": "艦名6",
+      "type": "string",
+      "title": "自軍6番艦の名前",
+      "description": "出撃した自軍艦隊の編成. 空きスロットは空欄."
+    },
+    {
+      "name": "自艦隊",
+      "type": "string",
+      "title": "攻守の自軍艦隊",
+      "description": "この行に関わる自軍艦がどの艦隊に属するか. 連合艦隊でなければ 通常艦隊.",
+      "constraints": {
+        "enum": [
+          "通常艦隊",
+          "連合第1艦隊",
+          "連合第2艦隊"
+        ]
+      }
+    },
+    {
+      "name": "巡目",
+      "type": "string",
+      "title": "砲撃戦の巡目",
+      "description": "先制対潜フェーズか, 第何巡目の砲撃戦か.",
+      "constraints": {
+        "enum": [
+          "先制対潜",
+          "1",
+          "2",
+          "3"
+        ]
+      }
+    },
+    {
+      "name": "攻撃艦",
+      "type": "string",
+      "title": "攻撃側の陣営",
+      "description": "この行の攻撃側がどちらか. 防御側は反対の陣営になる.",
+      "constraints": {
+        "enum": [
+          "自軍",
+          "敵軍"
+        ]
+      }
+    },
+    {
+      "name": "砲撃種別",
+      "type": "integer",
+      "title": "昼戦攻撃種別",
+      "description": "api_at_type. 値の意味は categories を参照.",
+      "categories": [
+        {
+          "value": 0,
+          "label": "通常攻撃"
+        },
+        {
+          "value": 1,
+          "label": "レーザー攻撃"
+        },
+        {
+          "value": 2,
+          "label": "連続射撃"
+        },
+        {
+          "value": 3,
+          "label": "カットイン(主砲/副砲)"
+        },
+        {
+          "value": 4,
+          "label": "カットイン(主砲/電探)"
+        },
+        {
+          "value": 5,
+          "label": "カットイン(主砲/徹甲弾)"
+        },
+        {
+          "value": 6,
+          "label": "カットイン(主砲/主砲)"
+        },
+        {
+          "value": 7,
+          "label": "空母カットイン"
+        },
+        {
+          "value": 100,
+          "label": "Nelson Touch"
+        },
+        {
+          "value": 101,
+          "label": "一斉射かッ…胸が熱いな！"
+        },
+        {
+          "value": 102,
+          "label": "長門、いい？ いくわよ！ 主砲一斉射ッ！"
+        },
+        {
+          "value": 103,
+          "label": "Colorado Touch"
+        },
+        {
+          "value": 104,
+          "label": "僚艦夜戦突撃"
+        },
+        {
+          "value": 105,
+          "label": "Richelieuよ！圧倒しなさいっ！"
+        },
+        {
+          "value": 106,
+          "label": "Queen Elizabeth Class special attack"
+        },
+        {
+          "value": 200,
+          "label": "瑞雲立体攻撃"
+        },
+        {
+          "value": 201,
+          "label": "海空立体攻撃"
+        },
+        {
+          "value": 300,
+          "label": "潜水艦隊攻撃(ポジション2・3)"
+        },
+        {
+          "value": 301,
+          "label": "潜水艦隊攻撃(ポジション3・4)"
+        },
+        {
+          "value": 302,
+          "label": "潜水艦隊攻撃(ポジション2・4)"
+        },
+        {
+          "value": 400,
+          "label": "大和、突撃します！二番艦も続いてください！"
+        },
+        {
+          "value": 401,
+          "label": "第一戦隊、突撃！主砲、全力斉射ッ！"
+        }
+      ]
+    },
+    {
+      "name": "砲撃回数",
+      "type": "integer",
+      "title": "同一攻撃内の攻撃回数",
+      "description": "連撃や特殊攻撃で1攻撃が複数回になる場合の0始まり通し番号.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "表示装備1",
+      "type": "string",
+      "title": "表示装備1",
+      "description": "攻撃時に表示される装備の名前."
+    },
+    {
+      "name": "表示装備2",
+      "type": "string",
+      "title": "表示装備2",
+      "description": "攻撃時に表示される装備の名前."
+    },
+    {
+      "name": "表示装備3",
+      "type": "string",
+      "title": "表示装備3",
+      "description": "攻撃時に表示される装備の名前."
+    },
+    {
+      "name": "クリティカル",
+      "type": "integer",
+      "title": "命中判定",
+      "description": "0=命中せず, 1=命中, 2=クリティカル.",
+      "categories": [
+        {
+          "value": 0,
+          "label": "命中せず"
+        },
+        {
+          "value": 1,
+          "label": "命中"
+        },
+        {
+          "value": 2,
+          "label": "クリティカル"
+        }
+      ],
+      "constraints": {
+        "required": true
+      }
+    },
+    {
+      "name": "ダメージ",
+      "type": "integer",
+      "title": "与ダメージ",
+      "description": "かばうが発生した場合はかばった側が受けた値.",
+      "constraints": {
+        "required": true,
+        "minimum": 0
+      }
+    },
+    {
+      "name": "かばう",
+      "type": "integer",
+      "title": "かばう発生",
+      "description": "1ならば旗艦への攻撃を護衛艦が受けた.",
+      "constraints": {
+        "enum": [
+          0,
+          1
+        ]
+      }
+    },
+    {
+      "name": "攻撃艦.編成順",
+      "type": "integer",
+      "title": "攻撃艦の編成順",
+      "description": "1始まり. 連合艦隊では第2艦隊が7〜12になる.",
+      "constraints": {
+        "minimum": 1,
+        "maximum": 12
+      }
+    },
+    {
+      "name": "攻撃艦.ID",
+      "type": "integer",
+      "title": "攻撃艦の艦船ID",
+      "description": "api_start2 の艦船マスタID."
+    },
+    {
+      "name": "攻撃艦.名前",
+      "type": "string",
+      "title": "攻撃艦の名前",
+      "description": "艦船マスタの艦名. 深海棲艦もこの列に入る."
+    },
+    {
+      "name": "攻撃艦.種別",
+      "type": "string",
+      "title": "攻撃艦の艦種",
+      "description": "艦船マスタの艦種.",
+      "constraints": {
+        "enum": [
+          "海防艦",
+          "駆逐艦",
+          "軽巡洋艦",
+          "重雷装巡洋艦",
+          "重巡洋艦",
+          "航空巡洋艦",
+          "軽空母",
+          "巡洋戦艦",
+          "戦艦",
+          "航空戦艦",
+          "正規空母",
+          "超弩級戦艦",
+          "潜水艦",
+          "潜水空母",
+          "水上機母艦",
+          "揚陸艦",
+          "装甲空母",
+          "工作艦",
+          "潜水母艦",
+          "練習巡洋艦",
+          "補給艦"
+        ]
+      }
+    },
+    {
+      "name": "攻撃艦.疲労",
+      "type": "integer",
+      "title": "攻撃艦の戦闘前コンディション",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0,
+        "maximum": 100
+      }
+    },
+    {
+      "name": "攻撃艦.戦闘後疲労",
+      "type": "integer",
+      "title": "攻撃艦の戦闘後コンディション",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0,
+        "maximum": 100
+      }
+    },
+    {
+      "name": "攻撃艦.残耐久",
+      "type": "integer",
+      "title": "攻撃艦のこの攻撃を受ける直前の残耐久",
+      "description": "この行の攻撃が命中する前の値. 同じ艦が1回の戦闘で複数回攻撃を受ける場合, 行を追うごとに減っていく. 攻撃後の値はこの列とダメージ列から求める.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "攻撃艦.最大耐久",
+      "type": "integer",
+      "title": "攻撃艦の最大耐久",
+      "description": "この戦闘時点の最大耐久. 自軍艦では近代化改修による上昇を含む.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "攻撃艦.損傷",
+      "type": "string",
+      "title": "攻撃艦の損傷状態",
+      "description": "残耐久/最大耐久から算出される.",
+      "constraints": {
+        "enum": [
+          "小破未満",
+          "小破",
+          "中破",
+          "大破",
+          "轟沈"
+        ]
+      }
+    },
+    {
+      "name": "攻撃艦.残燃料",
+      "type": "integer",
+      "title": "攻撃艦の戦闘前残燃料",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "攻撃艦.戦闘後残燃料",
+      "type": "integer",
+      "title": "攻撃艦の戦闘後残燃料",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "攻撃艦.最大燃料",
+      "type": "integer",
+      "title": "攻撃艦の最大燃料",
+      "description": "艦船マスタの搭載量.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "攻撃艦.残弾薬",
+      "type": "integer",
+      "title": "攻撃艦の戦闘前残弾薬",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "攻撃艦.戦闘後残弾薬",
+      "type": "integer",
+      "title": "攻撃艦の戦闘後残弾薬",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "攻撃艦.最大弾薬",
+      "type": "integer",
+      "title": "攻撃艦の最大弾薬",
+      "description": "艦船マスタの搭載量.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "攻撃艦.Lv",
+      "type": "integer",
+      "title": "攻撃艦のレベル",
+      "description": "深海棲艦にも値が入る.",
+      "constraints": {
+        "minimum": 1
+      }
+    },
+    {
+      "name": "攻撃艦.速力",
+      "type": "string",
+      "title": "攻撃艦の速力",
+      "description": "api_soku (0/5/10/15/20) を文字列に直したもの. 0 は陸上基地を表す.",
+      "constraints": {
+        "enum": [
+          "陸上",
+          "低速",
+          "高速",
+          "高速+",
+          "最速"
+        ]
+      }
+    },
+    {
+      "name": "攻撃艦.火力",
+      "type": "integer",
+      "title": "攻撃艦の火力",
+      "description": "自軍艦では装備込みの現在値で, ゲームの艦娘ステータス画面に表示される値と一致する. 近代化改修・装備・装備ボーナスをすべて含む. 深海棲艦では戦闘APIが渡す基礎値に装備の上昇分を加えた値.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "攻撃艦.雷装",
+      "type": "integer",
+      "title": "攻撃艦の雷装",
+      "description": "自軍艦では装備込みの現在値で, ゲームの艦娘ステータス画面に表示される値と一致する. 近代化改修・装備・装備ボーナスをすべて含む. 深海棲艦では戦闘APIが渡す基礎値に装備の上昇分を加えた値.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "攻撃艦.対空",
+      "type": "integer",
+      "title": "攻撃艦の対空",
+      "description": "自軍艦では装備込みの現在値で, ゲームの艦娘ステータス画面に表示される値と一致する. 近代化改修・装備・装備ボーナスをすべて含む. 深海棲艦では戦闘APIが渡す基礎値に装備の上昇分を加えた値.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "攻撃艦.装甲",
+      "type": "integer",
+      "title": "攻撃艦の装甲",
+      "description": "自軍艦では装備込みの現在値で, ゲームの艦娘ステータス画面に表示される値と一致する. 近代化改修・装備・装備ボーナスをすべて含む. 深海棲艦では戦闘APIが渡す基礎値に装備の上昇分を加えた値.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "攻撃艦.回避",
+      "type": "integer",
+      "title": "攻撃艦の回避",
+      "description": "自軍艦では装備込みの現在値で, ゲームの艦娘ステータス画面に表示される値と一致する. 近代化改修・装備・装備ボーナスをすべて含む. 深海棲艦では戦闘APIがこの値を渡さないため, 艦船マスタの素値に装備の上昇分を加えた値になる.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "攻撃艦.対潜",
+      "type": "integer",
+      "title": "攻撃艦の対潜",
+      "description": "自軍艦では装備込みの現在値で, ゲームの艦娘ステータス画面に表示される値と一致する. 近代化改修・装備・装備ボーナスをすべて含む. 深海棲艦では戦闘APIがこの値を渡さないため, 艦船マスタの素値に装備の上昇分を加えた値になる.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "攻撃艦.索敵",
+      "type": "integer",
+      "title": "攻撃艦の索敵",
+      "description": "自軍艦では装備込みの現在値で, ゲームの艦娘ステータス画面に表示される値と一致する. 近代化改修・装備・装備ボーナスをすべて含む. 深海棲艦では戦闘APIがこの値を渡さないため, 艦船マスタの素値に装備の上昇分を加えた値になる.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "攻撃艦.運",
+      "type": "integer",
+      "title": "攻撃艦の運",
+      "description": "自軍艦では装備込みの現在値で, ゲームの艦娘ステータス画面に表示される値と一致する. 近代化改修・装備・装備ボーナスをすべて含む. 深海棲艦では戦闘APIがこの値を渡さないため, 艦船マスタの素値に装備の上昇分を加えた値になる.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "攻撃艦.射程",
+      "type": "string",
+      "title": "攻撃艦の射程",
+      "description": "赤仮期は射程0を 超短 と表記し, EOEN期は 無 と表記して 超長+ を追加した.",
+      "constraints": {
+        "enum": [
+          "無",
+          "短",
+          "中",
+          "長",
+          "超長",
+          "超長+"
+        ]
+      }
+    },
+    {
+      "name": "攻撃艦.装備1.名前",
+      "type": "string",
+      "title": "攻撃艦の装備1の名前",
+      "description": "装備していなければ空欄."
+    },
+    {
+      "name": "攻撃艦.装備1.改修",
+      "type": "integer",
+      "title": "攻撃艦の装備1の改修値",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0,
+        "maximum": 10
+      }
+    },
+    {
+      "name": "攻撃艦.装備1.熟練度",
+      "type": "integer",
+      "title": "攻撃艦の装備1の艦載機熟練度",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0,
+        "maximum": 7
+      }
+    },
+    {
+      "name": "攻撃艦.装備1.搭載数",
+      "type": "integer",
+      "title": "攻撃艦の装備1の戦闘前搭載数",
+      "description": "艦載機の搭載数(api_onslot). 艦載機以外の装備では0. 艦がそのスロットを持たない場合は0ではなく空欄になる.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "攻撃艦.装備1.戦闘後搭載数",
+      "type": "integer",
+      "title": "攻撃艦の装備1の戦闘後搭載数",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "攻撃艦.装備2.名前",
+      "type": "string",
+      "title": "攻撃艦の装備2の名前",
+      "description": "装備していなければ空欄."
+    },
+    {
+      "name": "攻撃艦.装備2.改修",
+      "type": "integer",
+      "title": "攻撃艦の装備2の改修値",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0,
+        "maximum": 10
+      }
+    },
+    {
+      "name": "攻撃艦.装備2.熟練度",
+      "type": "integer",
+      "title": "攻撃艦の装備2の艦載機熟練度",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0,
+        "maximum": 7
+      }
+    },
+    {
+      "name": "攻撃艦.装備2.搭載数",
+      "type": "integer",
+      "title": "攻撃艦の装備2の戦闘前搭載数",
+      "description": "艦載機の搭載数(api_onslot). 艦載機以外の装備では0. 艦がそのスロットを持たない場合は0ではなく空欄になる.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "攻撃艦.装備2.戦闘後搭載数",
+      "type": "integer",
+      "title": "攻撃艦の装備2の戦闘後搭載数",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "攻撃艦.装備3.名前",
+      "type": "string",
+      "title": "攻撃艦の装備3の名前",
+      "description": "装備していなければ空欄."
+    },
+    {
+      "name": "攻撃艦.装備3.改修",
+      "type": "integer",
+      "title": "攻撃艦の装備3の改修値",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0,
+        "maximum": 10
+      }
+    },
+    {
+      "name": "攻撃艦.装備3.熟練度",
+      "type": "integer",
+      "title": "攻撃艦の装備3の艦載機熟練度",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0,
+        "maximum": 7
+      }
+    },
+    {
+      "name": "攻撃艦.装備3.搭載数",
+      "type": "integer",
+      "title": "攻撃艦の装備3の戦闘前搭載数",
+      "description": "艦載機の搭載数(api_onslot). 艦載機以外の装備では0. 艦がそのスロットを持たない場合は0ではなく空欄になる.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "攻撃艦.装備3.戦闘後搭載数",
+      "type": "integer",
+      "title": "攻撃艦の装備3の戦闘後搭載数",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "攻撃艦.装備4.名前",
+      "type": "string",
+      "title": "攻撃艦の装備4の名前",
+      "description": "装備していなければ空欄."
+    },
+    {
+      "name": "攻撃艦.装備4.改修",
+      "type": "integer",
+      "title": "攻撃艦の装備4の改修値",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0,
+        "maximum": 10
+      }
+    },
+    {
+      "name": "攻撃艦.装備4.熟練度",
+      "type": "integer",
+      "title": "攻撃艦の装備4の艦載機熟練度",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0,
+        "maximum": 7
+      }
+    },
+    {
+      "name": "攻撃艦.装備4.搭載数",
+      "type": "integer",
+      "title": "攻撃艦の装備4の戦闘前搭載数",
+      "description": "艦載機の搭載数(api_onslot). 艦載機以外の装備では0. 艦がそのスロットを持たない場合は0ではなく空欄になる.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "攻撃艦.装備4.戦闘後搭載数",
+      "type": "integer",
+      "title": "攻撃艦の装備4の戦闘後搭載数",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "攻撃艦.装備5.名前",
+      "type": "string",
+      "title": "攻撃艦の装備5の名前",
+      "description": "装備していなければ空欄."
+    },
+    {
+      "name": "攻撃艦.装備5.改修",
+      "type": "integer",
+      "title": "攻撃艦の装備5の改修値",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0,
+        "maximum": 10
+      }
+    },
+    {
+      "name": "攻撃艦.装備5.熟練度",
+      "type": "integer",
+      "title": "攻撃艦の装備5の艦載機熟練度",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0,
+        "maximum": 7
+      }
+    },
+    {
+      "name": "攻撃艦.装備5.搭載数",
+      "type": "integer",
+      "title": "攻撃艦の装備5の戦闘前搭載数",
+      "description": "艦載機の搭載数(api_onslot). 艦載機以外の装備では0. 艦がそのスロットを持たない場合は0ではなく空欄になる.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "攻撃艦.装備5.戦闘後搭載数",
+      "type": "integer",
+      "title": "攻撃艦の装備5の戦闘後搭載数",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "攻撃艦.装備6.名前",
+      "type": "string",
+      "title": "攻撃艦の装備6の名前",
+      "description": "補強増設スロット. 装備していなければ空欄."
+    },
+    {
+      "name": "攻撃艦.装備6.改修",
+      "type": "integer",
+      "title": "攻撃艦の装備6の改修値",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0,
+        "maximum": 10
+      }
+    },
+    {
+      "name": "攻撃艦.装備6.熟練度",
+      "type": "integer",
+      "title": "攻撃艦の装備6の艦載機熟練度",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0,
+        "maximum": 7
+      }
+    },
+    {
+      "name": "攻撃艦.装備6.搭載数",
+      "type": "string",
+      "title": "攻撃艦の装備6の搭載数",
+      "description": "この形式では常に空欄. 書き出し側が値を出力しない. 補強増設に搭載数の概念がない."
+    },
+    {
+      "name": "攻撃艦.装備6.戦闘後搭載数",
+      "type": "string",
+      "title": "攻撃艦の装備6の戦闘後搭載数",
+      "description": "この形式では常に空欄. 書き出し側が値を出力しない. 補強増設に搭載数の概念がない."
+    },
+    {
+      "name": "防御艦.編成順",
+      "type": "integer",
+      "title": "防御艦の編成順",
+      "description": "1始まり. 連合艦隊では第2艦隊が7〜12になる.",
+      "constraints": {
+        "minimum": 1,
+        "maximum": 12
+      }
+    },
+    {
+      "name": "防御艦.ID",
+      "type": "integer",
+      "title": "防御艦の艦船ID",
+      "description": "api_start2 の艦船マスタID."
+    },
+    {
+      "name": "防御艦.名前",
+      "type": "string",
+      "title": "防御艦の名前",
+      "description": "艦船マスタの艦名. 深海棲艦もこの列に入る."
+    },
+    {
+      "name": "防御艦.種別",
+      "type": "string",
+      "title": "防御艦の艦種",
+      "description": "艦船マスタの艦種.",
+      "constraints": {
+        "enum": [
+          "海防艦",
+          "駆逐艦",
+          "軽巡洋艦",
+          "重雷装巡洋艦",
+          "重巡洋艦",
+          "航空巡洋艦",
+          "軽空母",
+          "巡洋戦艦",
+          "戦艦",
+          "航空戦艦",
+          "正規空母",
+          "超弩級戦艦",
+          "潜水艦",
+          "潜水空母",
+          "水上機母艦",
+          "揚陸艦",
+          "装甲空母",
+          "工作艦",
+          "潜水母艦",
+          "練習巡洋艦",
+          "補給艦"
+        ]
+      }
+    },
+    {
+      "name": "防御艦.疲労",
+      "type": "integer",
+      "title": "防御艦の戦闘前コンディション",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0,
+        "maximum": 100
+      }
+    },
+    {
+      "name": "防御艦.戦闘後疲労",
+      "type": "integer",
+      "title": "防御艦の戦闘後コンディション",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0,
+        "maximum": 100
+      }
+    },
+    {
+      "name": "防御艦.残耐久",
+      "type": "integer",
+      "title": "防御艦のこの攻撃を受ける直前の残耐久",
+      "description": "この行の攻撃が命中する前の値. 同じ艦が1回の戦闘で複数回攻撃を受ける場合, 行を追うごとに減っていく. 攻撃後の値はこの列とダメージ列から求める.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "防御艦.最大耐久",
+      "type": "integer",
+      "title": "防御艦の最大耐久",
+      "description": "この戦闘時点の最大耐久. 自軍艦では近代化改修による上昇を含む.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "防御艦.損傷",
+      "type": "string",
+      "title": "防御艦の損傷状態",
+      "description": "残耐久/最大耐久から算出される.",
+      "constraints": {
+        "enum": [
+          "小破未満",
+          "小破",
+          "中破",
+          "大破",
+          "轟沈"
+        ]
+      }
+    },
+    {
+      "name": "防御艦.残燃料",
+      "type": "integer",
+      "title": "防御艦の戦闘前残燃料",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "防御艦.戦闘後残燃料",
+      "type": "integer",
+      "title": "防御艦の戦闘後残燃料",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "防御艦.最大燃料",
+      "type": "integer",
+      "title": "防御艦の最大燃料",
+      "description": "艦船マスタの搭載量.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "防御艦.残弾薬",
+      "type": "integer",
+      "title": "防御艦の戦闘前残弾薬",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "防御艦.戦闘後残弾薬",
+      "type": "integer",
+      "title": "防御艦の戦闘後残弾薬",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "防御艦.最大弾薬",
+      "type": "integer",
+      "title": "防御艦の最大弾薬",
+      "description": "艦船マスタの搭載量.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "防御艦.Lv",
+      "type": "integer",
+      "title": "防御艦のレベル",
+      "description": "深海棲艦にも値が入る.",
+      "constraints": {
+        "minimum": 1
+      }
+    },
+    {
+      "name": "防御艦.速力",
+      "type": "string",
+      "title": "防御艦の速力",
+      "description": "api_soku (0/5/10/15/20) を文字列に直したもの. 0 は陸上基地を表す.",
+      "constraints": {
+        "enum": [
+          "陸上",
+          "低速",
+          "高速",
+          "高速+",
+          "最速"
+        ]
+      }
+    },
+    {
+      "name": "防御艦.火力",
+      "type": "integer",
+      "title": "防御艦の火力",
+      "description": "自軍艦では装備込みの現在値で, ゲームの艦娘ステータス画面に表示される値と一致する. 近代化改修・装備・装備ボーナスをすべて含む. 深海棲艦では戦闘APIが渡す基礎値に装備の上昇分を加えた値.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "防御艦.雷装",
+      "type": "integer",
+      "title": "防御艦の雷装",
+      "description": "自軍艦では装備込みの現在値で, ゲームの艦娘ステータス画面に表示される値と一致する. 近代化改修・装備・装備ボーナスをすべて含む. 深海棲艦では戦闘APIが渡す基礎値に装備の上昇分を加えた値.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "防御艦.対空",
+      "type": "integer",
+      "title": "防御艦の対空",
+      "description": "自軍艦では装備込みの現在値で, ゲームの艦娘ステータス画面に表示される値と一致する. 近代化改修・装備・装備ボーナスをすべて含む. 深海棲艦では戦闘APIが渡す基礎値に装備の上昇分を加えた値.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "防御艦.装甲",
+      "type": "integer",
+      "title": "防御艦の装甲",
+      "description": "自軍艦では装備込みの現在値で, ゲームの艦娘ステータス画面に表示される値と一致する. 近代化改修・装備・装備ボーナスをすべて含む. 深海棲艦では戦闘APIが渡す基礎値に装備の上昇分を加えた値.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "防御艦.回避",
+      "type": "integer",
+      "title": "防御艦の回避",
+      "description": "自軍艦では装備込みの現在値で, ゲームの艦娘ステータス画面に表示される値と一致する. 近代化改修・装備・装備ボーナスをすべて含む. 深海棲艦では戦闘APIがこの値を渡さないため, 艦船マスタの素値に装備の上昇分を加えた値になる.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "防御艦.対潜",
+      "type": "integer",
+      "title": "防御艦の対潜",
+      "description": "自軍艦では装備込みの現在値で, ゲームの艦娘ステータス画面に表示される値と一致する. 近代化改修・装備・装備ボーナスをすべて含む. 深海棲艦では戦闘APIがこの値を渡さないため, 艦船マスタの素値に装備の上昇分を加えた値になる.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "防御艦.索敵",
+      "type": "integer",
+      "title": "防御艦の索敵",
+      "description": "自軍艦では装備込みの現在値で, ゲームの艦娘ステータス画面に表示される値と一致する. 近代化改修・装備・装備ボーナスをすべて含む. 深海棲艦では戦闘APIがこの値を渡さないため, 艦船マスタの素値に装備の上昇分を加えた値になる.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "防御艦.運",
+      "type": "integer",
+      "title": "防御艦の運",
+      "description": "自軍艦では装備込みの現在値で, ゲームの艦娘ステータス画面に表示される値と一致する. 近代化改修・装備・装備ボーナスをすべて含む. 深海棲艦では戦闘APIがこの値を渡さないため, 艦船マスタの素値に装備の上昇分を加えた値になる.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "防御艦.射程",
+      "type": "string",
+      "title": "防御艦の射程",
+      "description": "赤仮期は射程0を 超短 と表記し, EOEN期は 無 と表記して 超長+ を追加した.",
+      "constraints": {
+        "enum": [
+          "無",
+          "短",
+          "中",
+          "長",
+          "超長",
+          "超長+"
+        ]
+      }
+    },
+    {
+      "name": "防御艦.装備1.名前",
+      "type": "string",
+      "title": "防御艦の装備1の名前",
+      "description": "装備していなければ空欄."
+    },
+    {
+      "name": "防御艦.装備1.改修",
+      "type": "integer",
+      "title": "防御艦の装備1の改修値",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0,
+        "maximum": 10
+      }
+    },
+    {
+      "name": "防御艦.装備1.熟練度",
+      "type": "integer",
+      "title": "防御艦の装備1の艦載機熟練度",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0,
+        "maximum": 7
+      }
+    },
+    {
+      "name": "防御艦.装備1.搭載数",
+      "type": "integer",
+      "title": "防御艦の装備1の戦闘前搭載数",
+      "description": "艦載機の搭載数(api_onslot). 艦載機以外の装備では0. 艦がそのスロットを持たない場合は0ではなく空欄になる.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "防御艦.装備1.戦闘後搭載数",
+      "type": "integer",
+      "title": "防御艦の装備1の戦闘後搭載数",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "防御艦.装備2.名前",
+      "type": "string",
+      "title": "防御艦の装備2の名前",
+      "description": "装備していなければ空欄."
+    },
+    {
+      "name": "防御艦.装備2.改修",
+      "type": "integer",
+      "title": "防御艦の装備2の改修値",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0,
+        "maximum": 10
+      }
+    },
+    {
+      "name": "防御艦.装備2.熟練度",
+      "type": "integer",
+      "title": "防御艦の装備2の艦載機熟練度",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0,
+        "maximum": 7
+      }
+    },
+    {
+      "name": "防御艦.装備2.搭載数",
+      "type": "integer",
+      "title": "防御艦の装備2の戦闘前搭載数",
+      "description": "艦載機の搭載数(api_onslot). 艦載機以外の装備では0. 艦がそのスロットを持たない場合は0ではなく空欄になる.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "防御艦.装備2.戦闘後搭載数",
+      "type": "integer",
+      "title": "防御艦の装備2の戦闘後搭載数",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "防御艦.装備3.名前",
+      "type": "string",
+      "title": "防御艦の装備3の名前",
+      "description": "装備していなければ空欄."
+    },
+    {
+      "name": "防御艦.装備3.改修",
+      "type": "integer",
+      "title": "防御艦の装備3の改修値",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0,
+        "maximum": 10
+      }
+    },
+    {
+      "name": "防御艦.装備3.熟練度",
+      "type": "integer",
+      "title": "防御艦の装備3の艦載機熟練度",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0,
+        "maximum": 7
+      }
+    },
+    {
+      "name": "防御艦.装備3.搭載数",
+      "type": "integer",
+      "title": "防御艦の装備3の戦闘前搭載数",
+      "description": "艦載機の搭載数(api_onslot). 艦載機以外の装備では0. 艦がそのスロットを持たない場合は0ではなく空欄になる.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "防御艦.装備3.戦闘後搭載数",
+      "type": "integer",
+      "title": "防御艦の装備3の戦闘後搭載数",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "防御艦.装備4.名前",
+      "type": "string",
+      "title": "防御艦の装備4の名前",
+      "description": "装備していなければ空欄."
+    },
+    {
+      "name": "防御艦.装備4.改修",
+      "type": "integer",
+      "title": "防御艦の装備4の改修値",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0,
+        "maximum": 10
+      }
+    },
+    {
+      "name": "防御艦.装備4.熟練度",
+      "type": "integer",
+      "title": "防御艦の装備4の艦載機熟練度",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0,
+        "maximum": 7
+      }
+    },
+    {
+      "name": "防御艦.装備4.搭載数",
+      "type": "integer",
+      "title": "防御艦の装備4の戦闘前搭載数",
+      "description": "艦載機の搭載数(api_onslot). 艦載機以外の装備では0. 艦がそのスロットを持たない場合は0ではなく空欄になる.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "防御艦.装備4.戦闘後搭載数",
+      "type": "integer",
+      "title": "防御艦の装備4の戦闘後搭載数",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "防御艦.装備5.名前",
+      "type": "string",
+      "title": "防御艦の装備5の名前",
+      "description": "装備していなければ空欄."
+    },
+    {
+      "name": "防御艦.装備5.改修",
+      "type": "integer",
+      "title": "防御艦の装備5の改修値",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0,
+        "maximum": 10
+      }
+    },
+    {
+      "name": "防御艦.装備5.熟練度",
+      "type": "integer",
+      "title": "防御艦の装備5の艦載機熟練度",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0,
+        "maximum": 7
+      }
+    },
+    {
+      "name": "防御艦.装備5.搭載数",
+      "type": "integer",
+      "title": "防御艦の装備5の戦闘前搭載数",
+      "description": "艦載機の搭載数(api_onslot). 艦載機以外の装備では0. 艦がそのスロットを持たない場合は0ではなく空欄になる.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "防御艦.装備5.戦闘後搭載数",
+      "type": "integer",
+      "title": "防御艦の装備5の戦闘後搭載数",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "防御艦.装備6.名前",
+      "type": "string",
+      "title": "防御艦の装備6の名前",
+      "description": "補強増設スロット. 装備していなければ空欄."
+    },
+    {
+      "name": "防御艦.装備6.改修",
+      "type": "integer",
+      "title": "防御艦の装備6の改修値",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0,
+        "maximum": 10
+      }
+    },
+    {
+      "name": "防御艦.装備6.熟練度",
+      "type": "integer",
+      "title": "防御艦の装備6の艦載機熟練度",
+      "description": "深海棲艦では空欄.",
+      "constraints": {
+        "minimum": 0,
+        "maximum": 7
+      }
+    },
+    {
+      "name": "防御艦.装備6.搭載数",
+      "type": "string",
+      "title": "防御艦の装備6の搭載数",
+      "description": "この形式では常に空欄. 書き出し側が値を出力しない. 補強増設に搭載数の概念がない."
+    },
+    {
+      "name": "防御艦.装備6.戦闘後搭載数",
+      "type": "string",
+      "title": "防御艦の装備6の戦闘後搭載数",
+      "description": "この形式では常に空欄. 書き出し側が値を出力しない. 補強増設に搭載数の概念がない."
+    },
+    {
+      "name": "艦隊種類",
+      "type": "string",
+      "title": "自軍艦隊種類",
+      "description": "連合艦隊の種別(api_combined_flag). 連合艦隊を組んでいなければ 通常艦隊.",
+      "constraints": {
+        "enum": [
+          "通常艦隊",
+          "機動部隊",
+          "水上部隊",
+          "輸送部隊",
+          "不明"
+        ]
+      }
+    },
+    {
+      "name": "敵艦隊種類",
+      "type": "string",
+      "title": "敵軍艦隊種類",
+      "description": "敵が連合艦隊かどうか.",
+      "constraints": {
+        "enum": [
+          "通常艦隊",
+          "連合艦隊"
+        ]
+      }
+    },
+    {
+      "name": "煙幕レベル",
+      "type": "integer",
+      "title": "煙幕の濃度",
+      "description": "api_smoke_type. 0=未使用または不発, 1〜3=濃度. 濃度は発煙装置の装備数に応じてランダムに決まる.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "阻塞気球マス",
+      "type": "integer",
+      "title": "阻塞気球を飛ばせるマスか",
+      "description": "api_balloon_cell. 飛ばせるマスなら1. 2023年夏イベントの後段作戦から実装された.",
+      "constraints": {
+        "enum": [
+          0,
+          1
+        ]
+      }
+    },
+    {
+      "name": "自気球隻数",
+      "type": "integer",
+      "title": "自軍が搭載する阻塞気球の数",
+      "description": "列名は隻数だが, 実際に数えているのは装備の個数. 1隻が阻塞気球を2つ積めば2になる.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "敵気球隻数",
+      "type": "integer",
+      "title": "敵軍が搭載する阻塞気球の数",
+      "description": "列名は隻数だが, 実際に数えているのは装備の個数. 1隻が阻塞気球を2つ積めば2になる.",
+      "constraints": {
+        "minimum": 0
+      }
+    },
+    {
+      "name": "装甲破砕",
+      "type": "integer",
+      "title": "装甲破砕フラグ",
+      "description": "装甲破砕が成立している場合に1. それ以外は空欄.",
+      "constraints": {
+        "enum": [
+          1
+        ]
+      }
+    }
+  ]
+}
