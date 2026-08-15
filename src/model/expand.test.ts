@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { combinations, expandOutput, slotColumn } from "./expand";
-import type { OutputNode } from "./types";
+import { combinations, displayItemColumn, expandOutput, slotColumn } from "./expand";
+import type { DisplayItemQuantity, OutputNode } from "./types";
 
 const nameIs = (v: string) => ({ kind: "eq" as const, values: [v] });
 
@@ -111,5 +111,34 @@ describe("expandOutput", () => {
   it("slot を含まない木はそのまま返る", () => {
     const node: OutputNode = { kind: "column", column: "巡目", cond: { kind: "eq", values: [1] } };
     expect(expandOutput(node)).toEqual(node);
+  });
+});
+
+describe("displayItemColumn", () => {
+  it("列名を組み立てる", () => {
+    expect(displayItemColumn(1)).toBe("表示装備1");
+    expect(displayItemColumn(3)).toBe("表示装備3");
+  });
+});
+
+describe("expandOutput (displayItem)", () => {
+  const node = (quantity: DisplayItemQuantity): OutputNode => ({
+    kind: "displayItem", quantity, cond: { kind: "contains", values: ["46cm三連装砲"] },
+  });
+
+  it("いずれか は3分岐のORになる", () => {
+    const r = expandOutput(node({ kind: "any" }));
+    expect(r).toEqual({
+      kind: "group", op: "OR",
+      children: [1, 2, 3].map((k) => ({
+        kind: "column", column: `表示装備${k}`, cond: { kind: "contains", values: ["46cm三連装砲"] },
+      })),
+    });
+  });
+
+  it("すべて は3分岐のANDになる", () => {
+    const r = expandOutput(node({ kind: "all" })) as { op: string; children: unknown[] };
+    expect(r.op).toBe("AND");
+    expect(r.children).toHaveLength(3);
   });
 });

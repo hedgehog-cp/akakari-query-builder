@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { expandOutput } from "./expand";
 import { foldOutput } from "./fold";
-import type { OutputNode, SlotQuantity } from "./types";
+import type { DisplayItemQuantity, OutputNode, SlotQuantity, ValueCond } from "./types";
 
 function slotNode(quantity: SlotQuantity, side: "攻撃艦" | "防御艦" = "攻撃艦"): OutputNode {
   return {
@@ -110,5 +110,26 @@ describe("foldOutput", () => {
       ],
     };
     expect(foldOutput(node)).toEqual(node);
+  });
+});
+
+describe("foldOutput (displayItem)", () => {
+  const quantities: DisplayItemQuantity[] = [{ kind: "any" }, { kind: "all" }];
+  for (const q of quantities) {
+    it(`fold(expand(x)) === x : ${JSON.stringify(q)}`, () => {
+      const x: OutputNode = {
+        kind: "displayItem", quantity: q, cond: { kind: "contains", values: ["46cm三連装砲"] },
+      };
+      expect(foldOutput(expandOutput(x))).toEqual(x);
+    });
+  }
+
+  it("手書きのOR/ANDグループも表示装備条件に畳める", () => {
+    const cond: ValueCond = { kind: "eq", values: ["電探"] };
+    const group: OutputNode = {
+      kind: "group", op: "OR",
+      children: [1, 2, 3].map((k) => ({ kind: "column", column: `表示装備${k}`, cond })),
+    };
+    expect(foldOutput(group)).toEqual({ kind: "displayItem", quantity: { kind: "any" }, cond });
   });
 });

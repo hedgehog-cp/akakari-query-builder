@@ -132,4 +132,10 @@ describe("空グループ・空条件の検出", () => {
     };
     expect(validateQuery(q, COLUMNS).map((w) => w.code)).toContain("empty-value");
   });
+
+  it("値が空の表示装備条件を警告する", () => {
+    expect(codes(withOutput({
+      kind: "displayItem", quantity: { kind: "any" }, cond: { kind: "contains", values: [""] },
+    }))).toContain("empty-value");
+  });
 });

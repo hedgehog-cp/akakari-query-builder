@@ -143,6 +143,16 @@ describe("serializeQuery", () => {
     expect(json.出力.OR[0]).toEqual({ "攻撃艦.装備1.名前": { 含む: "46cm三連装砲" } });
   });
 
+  it("表示装備条件は展開されてから出力される", () => {
+    const q: Query = {
+      ...emptyQuery("akakari-hougeki"),
+      output: { kind: "displayItem", quantity: { kind: "any" }, cond: { kind: "contains", values: ["46cm三連装砲"] } },
+    };
+    const json = queryToJson(q) as { 出力: { OR: unknown[] } };
+    expect(json.出力.OR).toHaveLength(3);
+    expect(json.出力.OR[0]).toEqual({ 表示装備1: { 含む: "46cm三連装砲" } });
+  });
+
   it("serializeQuery は2スペース字下げのJSON文字列を返す", () => {
     const text = serializeQuery(emptyQuery("akakari-raigeki"));
     expect(text).toBe('{\n  "種別": "赤仮雷撃戦"\n}');

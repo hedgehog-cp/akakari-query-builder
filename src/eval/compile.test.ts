@@ -151,6 +151,17 @@ describe("compileQuery", () => {
     expect(p([...base, "", "", "46cm三連装砲", "", "", ""])).toBe(true);
     expect(p([...base, "", "", "", "", "", ""])).toBe(false);
   });
+
+  it("表示装備条件は展開されて評価される", () => {
+    const header = [...HEADER, "表示装備1", "表示装備2", "表示装備3"];
+    const q: Query = withOutput({
+      kind: "displayItem", quantity: { kind: "any" }, cond: { kind: "contains", values: ["46cm"] },
+    });
+    const p = compileQuery(q, header).predicate;
+    const base = ["1", "", "", "", "", "", ""];
+    expect(p([...base, "", "", "46cm三連装砲"])).toBe(true);
+    expect(p([...base, "", "", ""])).toBe(false);
+  });
 });
 
 describe("hjson と評価器の整合", () => {

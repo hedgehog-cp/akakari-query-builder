@@ -4,30 +4,44 @@ import { serializeQuery } from "../serialize/hjson";
 import { toGoogleQuery } from "../serialize/gquery";
 import { parseQuery, type ParseWarning } from "../parse/json";
 import type { Column } from "../schema/catalog";
-import { deleteTemplate, listTemplates, saveTemplate, type Template } from "../storage/templates";
+import { JsonHighlight } from "./json-highlight";
 
 export function ResultPane(props: {
   query: Query;
   columns: Column[];
+  matchHeight: number | null;
   onImport: (q: Query, warnings: ParseWarning[]) => void;
-  onLoadTemplate: (q: Query) => void;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<"hjson" | "query">("hjson");
   const [includeDate, setIncludeDate] = useState(false);
-  const [templates, setTemplates] = useState<Template[]>(() => listTemplates());
-  const [templateName, setTemplateName] = useState("");
   const [copied, setCopied] = useState(false);
   const [focused, setFocused] = useState(false);
   const [draftText, setDraftText] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const preRef = useRef<HTMLPreElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [preSize, setPreSize] = useState<{ width: number; height: number } | null>(null);
 
-  const saveAsTemplate = () => {
-    const name = templateName.trim();
-    if (name === "") return;
-    setTemplates(saveTemplate(name, props.query.battle, props.query));
-    setTemplateName("");
-  };
+  // textarea をネイティブのリサイズハンドルで手動拡大しても、構文強調の黒背景(pre)が
+  // CSSクラスだけでは追従しないため、実測してインラインstyleで直接反映する。
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (el === null) return;
+    const observer = new ResizeObserver(() => {
+      // contentRect は padding/border を含まない content-box のサイズなので、
+      // border-box(Tailwind の既定)で height/width を直接指定するには使えない。
+      // getBoundingClientRect() の border-box サイズをそのまま使う。
+      const rect = el.getBoundingClientRect();
+      setPreSize({ width: rect.width, height: rect.height });
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const heightStyle = props.matchHeight !== null
+    ? ({ "--match-h": `${props.matchHeight}px` } as Record<string, string>)
+    : undefined;
 
   const columnNames = props.columns.map((c) => c.name);
   const hjsonText = serializeQuery(props.query);
@@ -120,7 +134,10 @@ export function ResultPane(props: {
           クリップボードにコピーしました
         </div>
       )}
-      <section class="bg-bg-panel border border-gray-300 rounded p-3">
+      <section class="bg-bg-panel border border-gray-300 rounded p-3"
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => void handleDrop(e)}
+      >
       <div class="flex items-center gap-2 mb-2">
         <div class="flex gap-1">
           <button type="button"
@@ -150,44 +167,6 @@ export function ResultPane(props: {
             onClick={() => void pickFile()}>JSON を読み込む</button>
         </div>
       </div>
-      <div class="flex flex-wrap items-center gap-1 mb-2 text-xs">
-        <input type="text" class="border border-gray-300 rounded px-2 py-0.5 w-40"
-          placeholder="テンプレート名"
-          value={templateName}
-          onInput={(e) => setTemplateName((e.target as HTMLInputElement).value)} />
-        <button type="button" class="border border-emp-1 rounded px-2 py-0.5 hover:bg-emp-4 disabled:opacity-40"
-          disabled={templateName.trim() === ""}
-          onClick={saveAsTemplate}>
-          名前を付けて保存
-        </button>
-        {templates.length > 0 && (
-          <select class="border border-gray-300 rounded px-1 py-0.5"
-            value=""
-            onChange={(e) => {
-              const name = (e.target as HTMLSelectElement).value;
-              const t = templates.find((x) => x.name === name);
-              if (t !== undefined) props.onLoadTemplate(t.query);
-              (e.target as HTMLSelectElement).value = "";
-            }}>
-            <option value="" disabled>テンプレートを読み込む…</option>
-            {templates.map((t) => <option key={t.name} value={t.name}>{t.name}</option>)}
-          </select>
-        )}
-        {templates.length > 0 && (
-          <select class="border border-gray-300 rounded px-1 py-0.5"
-            value=""
-            onChange={(e) => {
-              const name = (e.target as HTMLSelectElement).value;
-              if (name !== "" && confirm(`テンプレート「${name}」を削除しますか?`)) {
-                setTemplates(deleteTemplate(name));
-              }
-              (e.target as HTMLSelectElement).value = "";
-            }}>
-            <option value="" disabled>テンプレートを削除…</option>
-            {templates.map((t) => <option key={t.name} value={t.name}>{t.name}</option>)}
-          </select>
-        )}
-      </div>
       {error !== null && (
         <p class="text-xs text-red-600 mb-1">読み込めませんでした: {error}</p>
       )}
@@ -198,7 +177,6 @@ export function ResultPane(props: {
               onChange={(e) => setIncludeDate((e.target as HTMLInputElement).checked)} />
             日時を QUERY に載せる(日付列が日時値として取り込まれている場合のみ効きます)
           </label>
-          <p>列参照は <code>Col1</code> から始まる番号です。<code>QUERY()</code> の第2引数に貼ってください。</p>
           {gq.dropped.length > 0 && (
             <p class="text-red-600">
               次の条件は QUERY に反映されていません: {gq.dropped.join(", ")}
@@ -209,20 +187,37 @@ export function ResultPane(props: {
           {gq.warnings.map((w, i) => <p key={i} class="text-amber-700">{w}</p>)}
         </div>
       )}
-      {tab === "hjson" ? (
-        <textarea
-          class="text-xs bg-gray-50 border border-gray-200 rounded p-2 overflow-auto max-h-[60vh] w-full font-mono"
-          rows={20}
-          value={draftText}
-          onFocus={() => setFocused(true)}
-          onBlur={() => { flushPending(); setFocused(false); }}
-          onInput={(e) => handleTextareaInput((e.target as HTMLTextAreaElement).value)}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => void handleDrop(e)}
-        />
-      ) : (
-        <pre class="text-xs bg-gray-50 border border-gray-200 rounded p-2 overflow-auto max-h-[60vh]">{text}</pre>
-      )}
+      <div class={tab === "hjson" ? "" : "hidden"}>
+        <div class="relative" style={heightStyle}>
+          <pre
+            ref={preRef}
+            aria-hidden="true"
+            class="pointer-events-none absolute inset-0 m-0 text-xs bg-[#1e1e1e] rounded p-2 overflow-hidden max-h-[60vh] lg:max-h-none lg:h-[var(--match-h,auto)] w-full font-mono whitespace-pre-wrap break-words border border-transparent"
+            style={preSize !== null ? { height: `${preSize.height}px`, width: `${preSize.width}px` } : undefined}
+          >
+            <JsonHighlight text={draftText} />
+          </pre>
+          <textarea
+            ref={textareaRef}
+            class="relative text-xs bg-transparent border border-gray-200 rounded p-2 overflow-auto max-h-[60vh] lg:max-h-none lg:h-[var(--match-h,auto)] w-full font-mono whitespace-pre-wrap break-words text-transparent caret-gray-100"
+            rows={20}
+            value={draftText}
+            onFocus={() => setFocused(true)}
+            onBlur={() => { flushPending(); setFocused(false); }}
+            onInput={(e) => handleTextareaInput((e.target as HTMLTextAreaElement).value)}
+            onScroll={(e) => {
+              const el = e.target as HTMLTextAreaElement;
+              if (preRef.current !== null) {
+                preRef.current.scrollTop = el.scrollTop;
+                preRef.current.scrollLeft = el.scrollLeft;
+              }
+            }}
+          />
+        </div>
+      </div>
+      <div class={tab === "query" ? "" : "hidden"}>
+        <pre class="text-xs bg-gray-50 border border-gray-200 rounded p-2 overflow-auto max-h-[60vh] w-full whitespace-pre-wrap break-words">{text}</pre>
+      </div>
       </section>
     </>
   );

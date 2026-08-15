@@ -8,9 +8,9 @@ export type GroupOp = "AND" | "OR" | "NOT";
 export type AddRuleAction = { label: string; onClick: () => void };
 
 const OP_LABEL: Record<GroupOp, string> = {
-  AND: "すべて満たす (AND)",
-  OR: "いずれか満たす (OR)",
-  NOT: "満たさない (NOT)",
+  AND: "AND",
+  OR: "OR",
+  NOT: "NOT",
 };
 
 /** 演算子ごとの色。画像で示された操作感に合わせ、種類が一目でわかるようにする。 */
@@ -20,57 +20,45 @@ const OP_COLOR: Record<GroupOp, string> = {
   NOT: "bg-rose-100 border-rose-400 text-rose-900",
 };
 
-/**
- * 「+ 条件」ボタン。actions が2つ以上あれば「+ 条件 ▾」の分割ボタンにして、
- * 「+ 装備スロット条件」のような副次的な追加操作を同じボタンから選べるようにする。
- */
-function AddRuleButton(props: { actions: AddRuleAction[] }) {
-  const [open, setOpen] = useState(false);
-  if (props.actions.length === 1) {
-    return (
-      <button type="button" class="border border-emp-1 rounded px-2 py-0.5 text-xs hover:bg-emp-4"
-        onClick={props.actions[0].onClick}>
-        {props.actions[0].label}
-      </button>
-    );
-  }
+/** 演算子を示す静的バッジ。opEditable=false の RuleGroup や、AND固定の
+ * 装備条件の属性リストなど、切り替えさせたくない箇所で使う。 */
+export function OpBadge(props: { op: GroupOp }) {
   return (
-    <div class="relative">
-      <button type="button" class="border border-emp-1 rounded px-2 py-0.5 text-xs hover:bg-emp-4"
-        onClick={() => setOpen(true)}>
-        {props.actions[0].label} ▾
-      </button>
-      {open && (
-        <>
-          <div class="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div class="absolute left-0 top-full mt-1 z-50 bg-bg-panel border border-gray-300 rounded shadow-lg whitespace-nowrap">
-            {props.actions.map((a) => (
-              <button key={a.label} type="button"
-                class="block w-full text-left px-3 py-1 text-xs hover:bg-emp-4"
-                onClick={() => { a.onClick(); setOpen(false); }}>
-                {a.label}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
+    <span class={`border rounded px-1 py-0.5 text-xs font-bold inline-block ${OP_COLOR[props.op]}`}>
+      {OP_LABEL[props.op]}
+    </span>
   );
 }
+
+const DEFAULT_EMPTY_MESSAGE = "空です。条件を追加するか削除してください";
 
 export function RuleGroup<T>(props: {
   op: GroupOp;
   children: T[];
-  onOpChange: (op: GroupOp) => void;
+  onOpChange?: (op: GroupOp) => void;
   onChildrenChange: (children: T[]) => void;
   /** 1行の中身の描画。子がグループならここで再帰的に RuleGroup を呼び出す。 */
   renderChild: (child: T, onChange: (c: T) => void, onRemove: () => void) => ComponentChildren;
   addRuleActions: AddRuleAction[];
-  onAddGroup: () => void;
+  onAddGroup?: () => void;
   onRemove?: () => void;
   depth: number;
   /** 行の React key を決める。省略時はインデックスを使う(D&D 中の内部状態はインデックスに紐付く)。 */
   keyOf?: (item: T, index: number) => string | number;
+  /** 子オブジェクトが編集で新しいオブジェクトに置き換わる直前に呼ばれる。
+   * WeakMap ベースの keyOf を使う呼び出し側は、ここで旧オブジェクトの
+   * キーを新オブジェクトに引き継ぎ、編集のたびに行が作り直される
+   * (=フォーカスが外れる)のを防ぐ。 */
+  onChildEdit?: (prev: T, next: T) => void;
+  /** false なら演算子を編集不可の静的バッジにする(日時のOR固定など)。既定 true。 */
+  opEditable?: boolean;
+  /** 子が空のときの案内文。null で非表示(既定の空状態が正常な場合に使う)。
+   * 省略時は既定文言を表示する。 */
+  emptyMessage?: string | null;
+  /** ヘッダ行に追加ボタン群の後・空メッセージや✕ボタンの前に差し込む内容。
+   * 装備条件の側/数量セレクトなど、RuleGroup自身が知らない専用コントロールを
+   * ヘッダに混ぜ込むために使う。 */
+  headerExtra?: ComponentChildren;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
@@ -98,6 +86,7 @@ export function RuleGroup<T>(props: {
 
   const isNot = props.op === "NOT";
   const setChild = (i: number, child: T) => {
+    props.onChildEdit?.(props.children[i], child);
     const next = [...props.children];
     next[i] = child;
     props.onChildrenChange(next);
@@ -114,26 +103,41 @@ export function RuleGroup<T>(props: {
           aria-label={collapsed ? "展開" : "折りたたむ"}>
           {collapsed ? "▸" : "▾"}
         </button>
-        <select
-          class={`border rounded px-1 text-xs font-bold ${OP_COLOR[props.op]}`}
-          value={props.op}
-          onChange={(e) => props.onOpChange((e.target as HTMLSelectElement).value as GroupOp)}
-        >
-          <option value="AND">{OP_LABEL.AND}</option>
-          <option value="OR">{OP_LABEL.OR}</option>
-          <option value="NOT">{OP_LABEL.NOT}</option>
-        </select>
+        {props.opEditable === false ? (
+          <OpBadge op={props.op} />
+        ) : (
+          <select
+            class={`border rounded px-1 text-xs font-bold ${OP_COLOR[props.op]}`}
+            value={props.op}
+            onChange={(e) => props.onOpChange?.((e.target as HTMLSelectElement).value as GroupOp)}
+          >
+            <option value="AND">{OP_LABEL.AND}</option>
+            <option value="OR">{OP_LABEL.OR}</option>
+            <option value="NOT">{OP_LABEL.NOT}</option>
+          </select>
+        )}
         {(!isNot || props.children.length === 0) && (
           <>
-            <AddRuleButton actions={props.addRuleActions} />
-            <button type="button" class="border border-emp-1 rounded px-2 py-0.5 text-xs hover:bg-emp-4"
-              onClick={props.onAddGroup}>
-              + グループ
-            </button>
+            {props.addRuleActions.map((a) => (
+              <button key={a.label} type="button"
+                class="border border-emp-1 rounded px-2 py-0.5 text-xs hover:bg-emp-4"
+                onClick={a.onClick}>
+                {a.label}
+              </button>
+            ))}
+            {props.onAddGroup !== undefined && (
+              <button type="button" class="border border-emp-1 rounded px-2 py-0.5 text-xs hover:bg-emp-4"
+                onClick={props.onAddGroup}>
+                + グループ
+              </button>
+            )}
           </>
         )}
-        {props.children.length === 0 && (
-          <span class="text-xs text-red-600">空です。条件を追加するか削除してください</span>
+        {props.headerExtra}
+        {props.children.length === 0 && (props.emptyMessage === undefined ? DEFAULT_EMPTY_MESSAGE : props.emptyMessage) !== null && (
+          <span class="text-xs text-red-600">
+            {props.emptyMessage === undefined ? DEFAULT_EMPTY_MESSAGE : props.emptyMessage}
+          </span>
         )}
         {props.onRemove !== undefined && (
           <button type="button" class="text-gray-500 hover:text-red-600 px-1 ml-auto"

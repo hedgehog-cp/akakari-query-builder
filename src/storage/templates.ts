@@ -40,3 +40,17 @@ export function deleteTemplate(name: string): Template[] {
   writeAll(next);
   return next;
 }
+
+/**
+ * 同名(自分自身への改名を除く)が既にあれば何もせず現在の一覧を返す。
+ * saveTemplate の「同名は上書き」とは異なり、改名先の衝突は誤操作の可能性が
+ * 高いため無言の上書きはしない。
+ */
+export function renameTemplate(oldName: string, newName: string): Template[] {
+  const all = readAll();
+  if (newName === oldName) return all;
+  if (all.some((t) => t.name === newName)) return all;
+  const next = all.map((t) => (t.name === oldName ? { ...t, name: newName } : t));
+  writeAll(next);
+  return next;
+}

@@ -40,6 +40,8 @@ export function outputToJson(node: OutputNode): Json {
       return { [node.op]: node.children.map(outputToJson) };
     case "slot":
       throw new Error("装備スロット条件は expandOutput で展開してから渡してください");
+    case "displayItem":
+      throw new Error("表示装備条件は expandOutput で展開してから渡してください");
   }
 }
 

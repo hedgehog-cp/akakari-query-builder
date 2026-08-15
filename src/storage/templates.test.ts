@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { listTemplates, saveTemplate, deleteTemplate } from "./templates";
+import { listTemplates, saveTemplate, deleteTemplate, renameTemplate } from "./templates";
 import { emptyQuery } from "../model/types";
 import { memoryLocalStorage } from "./test-helpers";
 
@@ -32,5 +32,24 @@ describe("templates", () => {
     saveTemplate("A", "akakari-hougeki", emptyQuery("akakari-hougeki"));
     deleteTemplate("A");
     expect(listTemplates()).toEqual([]);
+  });
+
+  it("改名できる", () => {
+    saveTemplate("A", "akakari-hougeki", emptyQuery("akakari-hougeki"));
+    const list = renameTemplate("A", "B");
+    expect(list.map((t) => t.name)).toEqual(["B"]);
+  });
+
+  it("改名先が既存名と衝突する場合は何もしない", () => {
+    saveTemplate("A", "akakari-hougeki", emptyQuery("akakari-hougeki"));
+    saveTemplate("B", "akakari-hougeki", emptyQuery("akakari-hougeki"));
+    const list = renameTemplate("A", "B");
+    expect(list.map((t) => t.name).sort()).toEqual(["A", "B"]);
+  });
+
+  it("自分自身への改名は何もしないが成功扱い", () => {
+    saveTemplate("A", "akakari-hougeki", emptyQuery("akakari-hougeki"));
+    const list = renameTemplate("A", "A");
+    expect(list.map((t) => t.name)).toEqual(["A"]);
   });
 });

@@ -101,6 +101,7 @@ function checkOutput(
       node.children.forEach((c, i) => checkOutput(c, columns, `${path}[${i}]`, out));
       return;
     case "slot":
+    case "displayItem":
       // 展開後を検査するのでここには来ない
       return;
   }
@@ -131,6 +132,11 @@ function checkOutputEmpty(node: OutputNode, path: string, out: Warning[]): void 
         return;
       }
       node.children.forEach((c, i) => checkOutputEmpty(c, `${path}[${i}]`, out));
+      return;
+    case "displayItem":
+      if (isEmptyValueCond(node.cond)) {
+        out.push({ code: "empty-value", path: `${path}.表示装備`, message: "表示装備条件に値が入力されていません" });
+      }
       return;
   }
 }

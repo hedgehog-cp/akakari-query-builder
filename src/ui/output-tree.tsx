@@ -1,8 +1,8 @@
 import type { OutputNode } from "../model/types";
 import type { Column } from "../schema/catalog";
-import { COMMON_COLUMNS } from "../schema/common-columns";
 import { ValueCondEditor, defaultCond } from "./value-cond-editor";
 import { SlotNodeEditor } from "./slot-node";
+import { DisplayItemNodeEditor } from "./display-item-node";
 import { nameTargetOf } from "./name-target";
 import { CellInput, MapAreaSelect } from "./map-input";
 import { RuleGroup } from "./rule-group";
@@ -13,9 +13,6 @@ function ColumnSelect(props: {
   onChange: (name: string) => void;
 }) {
   const known = new Set(props.columns.map((c) => c.name));
-  const common = COMMON_COLUMNS.filter((n) => known.has(n));
-  const commonSet = new Set(common);
-  const rest = props.columns.map((c) => c.name).filter((n) => !commonSet.has(n));
   const missing = !known.has(props.value);
   return (
     <select
@@ -24,12 +21,7 @@ function ColumnSelect(props: {
       onChange={(e) => props.onChange((e.target as HTMLSelectElement).value)}
     >
       {missing && <option value={props.value}>{props.value}(この戦闘種別に存在しません)</option>}
-      <optgroup label="検証でよく使う列">
-        {common.map((n) => <option key={n} value={n}>{n}</option>)}
-      </optgroup>
-      <optgroup label="すべての列">
-        {rest.map((n) => <option key={n} value={n}>{n}</option>)}
-      </optgroup>
+      {props.columns.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
     </select>
   );
 }
@@ -46,13 +38,19 @@ function newSlotNode(): OutputNode {
   };
 }
 
+function newDisplayItemNode(): OutputNode {
+  return { kind: "displayItem", quantity: { kind: "any" }, cond: { kind: "contains", values: [""] } };
+}
+
 /**
  * RuleGroup の行キー。オブジェクト参照ごとに一意な番号を割り当てて使い回す。
  * reorder() は配列内の要素を並べ替えるだけで個々の OutputNode オブジェクトの参照は
  * 変えないため、ドラッグでの並べ替えでは同じキーが保たれる(SortableJSのDOM操作と
- * Preactの再描画がズレて見た目が更新されなくなる問題を防ぐ)。一方、列や条件値の
- * 編集はスプレッド構文で新しいオブジェクトを作る(`{ ...node, cond }` など)ため、
- * 内容が変わった行には新しいキーが振られる。
+ * Preactの再描画がズレて見た目が更新されなくなる問題を防ぐ)。列や条件値の編集は
+ * スプレッド構文で新しいオブジェクトを作る(`{ ...node, cond }` など)ため本来は
+ * 別キーになってしまうが、RuleGroup の onChildEdit で旧オブジェクトのキーを
+ * 新オブジェクトへ引き継いでいるため、編集のたびに行(=DOM)が作り直されて
+ * 入力中のフォーカスが外れる、ということは起きない。
  */
 const nodeKeys = new WeakMap<OutputNode, number>();
 let nextNodeKey = 0;
@@ -113,6 +111,10 @@ function renderNode(
     return <SlotNodeEditor node={node} columns={columns} onChange={onChange} onRemove={onRemove} />;
   }
 
+  if (node.kind === "displayItem") {
+    return <DisplayItemNodeEditor node={node} columns={columns} onChange={onChange} onRemove={onRemove} />;
+  }
+
   return (
     <RuleGroup<OutputNode>
       op={node.op}
@@ -125,7 +127,8 @@ function renderNode(
       onChildrenChange={(children) => onChange({ ...node, children })}
       addRuleActions={[
         { label: "+ 条件", onClick: () => onChange({ ...node, children: [...node.children, newColumnNode(columns)] }) },
-        { label: "+ 装備スロット条件", onClick: () => onChange({ ...node, children: [...node.children, newSlotNode()] }) },
+        { label: "+ 装備条件", onClick: () => onChange({ ...node, children: [...node.children, newSlotNode()] }) },
+        { label: "+ 表示装備条件", onClick: () => onChange({ ...node, children: [...node.children, newDisplayItemNode()] }) },
       ]}
       onAddGroup={() => onChange({ ...node, children: [...node.children, { kind: "group", op: "OR", children: [] }] })}
       onRemove={onRemove}
@@ -133,6 +136,10 @@ function renderNode(
         renderNode(child, columns, depth + 1, onChildChange, onChildRemove)
       }
       keyOf={keyOf}
+      onChildEdit={(prev, next) => {
+        const k = nodeKeys.get(prev);
+        if (k !== undefined) nodeKeys.set(next, k);
+      }}
     />
   );
 }

@@ -1,6 +1,7 @@
 import { render } from "preact";
 import { App } from "./app";
+import { ErrorBoundary } from "./ui/error-boundary";
 
 const root = document.getElementById("root");
 if (root === null) throw new Error("#root が見つかりません");
-render(<App />, root);
+render(<ErrorBoundary><App /></ErrorBoundary>, root);

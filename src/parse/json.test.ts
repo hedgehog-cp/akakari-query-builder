@@ -6,6 +6,7 @@ import { emptyQuery, type Query } from "../model/types";
 const COLS = [
   "巡目", "クリティカル", "ダメージ", "ランク", "攻撃艦.名前",
   ...[1, 2, 3, 4, 5, 6].flatMap((k) => [`攻撃艦.装備${k}.名前`, `攻撃艦.装備${k}.改修`]),
+  "表示装備1", "表示装備2", "表示装備3",
 ];
 
 function roundTrip(q: Query): Query {
@@ -73,6 +74,14 @@ describe("parseQuery", () => {
         kind: "slot", side: "攻撃艦", quantity: { kind: "atLeast", n: 2 },
         attrs: [{ attr: "名前", cond: { kind: "contains", values: ["46cm三連装砲"] } }],
       },
+    };
+    expect(roundTrip(q)).toEqual(q);
+  });
+
+  it("展開後の表示装備条件を糖衣に畳み戻す", () => {
+    const q: Query = {
+      ...emptyQuery("akakari-hougeki"),
+      output: { kind: "displayItem", quantity: { kind: "all" }, cond: { kind: "contains", values: ["46cm三連装砲"] } },
     };
     expect(roundTrip(q)).toEqual(q);
   });

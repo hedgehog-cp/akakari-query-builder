@@ -1,6 +1,6 @@
-import type { OutputNode, Side, SlotAttr, SlotAttrCond, SlotQuantity } from "./types";
+import type { DisplayItemQuantity, OutputNode, Side, SlotAttr, SlotAttrCond, SlotQuantity, ValueCond } from "./types";
 import { SLOT_COUNT } from "./types";
-import { combinations } from "./expand";
+import { combinations, DISPLAY_ITEM_COUNT } from "./expand";
 
 const SLOT_ATTRS: SlotAttr[] = ["名前", "改修", "熟練度", "搭載数", "戦闘後搭載数"];
 const SIDES: Side[] = ["攻撃艦", "防御艦"];
@@ -107,10 +107,41 @@ function tryFoldGroup(node: OutputNode): OutputNode | null {
   return { kind: "slot", side, quantity: { kind: "atLeast", n }, attrs };
 }
 
+/** "表示装備1" を分解する。表示装備列でなければ null。 */
+function readDisplayItemColumn(column: string): number | null {
+  const m = /^表示装備([1-3])$/.exec(column);
+  return m === null ? null : Number(m[1]);
+}
+
+/** OR/AND グループを表示装備条件に畳めるなら畳む。属性は1つ(cond)だけなので
+ * tryFoldGroup よりずっと単純: 表示装備1〜3が重複なく揃い、条件が全枝で
+ * 一致していれば畳める。 */
+function tryFoldDisplayItemGroup(node: OutputNode): OutputNode | null {
+  if (node.kind !== "group") return null;
+  if (node.op !== "OR" && node.op !== "AND") return null;
+  if (node.children.length !== DISPLAY_ITEM_COUNT) return null;
+
+  const seen = new Set<number>();
+  let cond: ValueCond | null = null;
+  for (const child of node.children) {
+    if (child.kind !== "column") return null;
+    const n = readDisplayItemColumn(child.column);
+    if (n === null) return null;
+    seen.add(n);
+    if (cond === null) cond = child.cond;
+    else if (JSON.stringify(cond) !== JSON.stringify(child.cond)) return null;
+  }
+  if (seen.size !== DISPLAY_ITEM_COUNT) return null;
+
+  const quantity: DisplayItemQuantity = node.op === "OR" ? { kind: "any" } : { kind: "all" };
+  return { kind: "displayItem", quantity, cond: cond! };
+}
+
 export function foldOutput(node: OutputNode): OutputNode {
   switch (node.kind) {
     case "column":
     case "slot":
+    case "displayItem":
       return node;
     case "group": {
       // NOT(OR(...)) は どれも満たさない
@@ -124,8 +155,10 @@ export function foldOutput(node: OutputNode): OutputNode {
         }
         return { kind: "group", op: "NOT", children: [foldOutput(inner)] };
       }
-      const folded = tryFoldGroup(node);
-      if (folded !== null) return folded;
+      const foldedSlot = tryFoldGroup(node);
+      if (foldedSlot !== null) return foldedSlot;
+      const foldedDisplayItem = tryFoldDisplayItemGroup(node);
+      if (foldedDisplayItem !== null) return foldedDisplayItem;
       return { kind: "group", op: node.op, children: node.children.map(foldOutput) };
     }
   }

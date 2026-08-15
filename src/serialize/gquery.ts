@@ -107,6 +107,8 @@ function outputExpr(node: OutputNode, ctx: Ctx): string | null {
     }
     case "slot":
       throw new Error("装備スロット条件は expandOutput で展開してから渡してください");
+    case "displayItem":
+      throw new Error("表示装備条件は expandOutput で展開してから渡してください");
   }
 }
 
@@ -153,6 +155,6 @@ export function toGoogleQuery(
   if (q.attackerItems !== null) dropped.push("攻撃艦装備");
   if (q.defenderItems !== null) dropped.push("防御艦装備");
 
-  const where = terms.length === 0 ? "" : ` where ${terms.length === 1 ? terms[0] : `(${terms.join(" and ")})`}`;
-  return { query: `select *${where}`, dropped, warnings: ctx.warnings };
+  const where = terms.length === 0 ? "" : `where ${terms.length === 1 ? terms[0] : `(${terms.join(" and ")})`}`;
+  return { query: where, dropped, warnings: ctx.warnings };
 }

@@ -14,10 +14,12 @@ function newAttrCond(): ItemCond {
  * RuleGroup の行キー。オブジェクト参照ごとに一意な番号を割り当てて使い回す。
  * reorder() は配列内の要素を並べ替えるだけで個々のオブジェクトの参照は
  * 変えないため、ドラッグでの並べ替えでは同じキーが保たれる(SortableJSのDOM操作と
- * Preactの再描画がズレて見た目が更新されなくなる問題を防ぐ)。一方、値や条件の
- * 編集はスプレッド構文で新しいオブジェクトを作る(`{ ...cond, ... }` など)ため、
- * 内容が変わった行には新しいキーが振られる。ItemCond と CountItemNode は別の型
- * なので、WeakMap も型ごとに分けて持つ。
+ * Preactの再描画がズレて見た目が更新されなくなる問題を防ぐ)。値や条件の編集は
+ * スプレッド構文で新しいオブジェクトを作る(`{ ...cond, ... }` など)ため本来は
+ * 別キーになってしまうが、RuleGroup の onChildEdit で旧オブジェクトのキーを
+ * 新オブジェクトへ引き継いでいるため、編集のたびに行(=DOM)が作り直されて
+ * 入力中のフォーカスが外れる、ということは起きない。ItemCond と CountItemNode
+ * は別の型なので、WeakMap も型ごとに分けて持つ。
  */
 const itemCondKeys = new WeakMap<ItemCond, number>();
 let nextItemCondKey = 0;
@@ -114,6 +116,10 @@ function renderItemCond(
         renderItemCond(child, depth + 1, onChildChange, onChildRemove)
       }
       keyOf={itemCondKeyOf}
+      onChildEdit={(prev, next) => {
+        const k = itemCondKeys.get(prev);
+        if (k !== undefined) itemCondKeys.set(next, k);
+      }}
     />
   );
 }
@@ -167,6 +173,10 @@ function renderCountNode(
         renderCountNode(child, depth + 1, onChildChange, onChildRemove)
       }
       keyOf={countNodeKeyOf}
+      onChildEdit={(prev, next) => {
+        const k = countNodeKeys.get(prev);
+        if (k !== undefined) countNodeKeys.set(next, k);
+      }}
     />
   );
 }

@@ -5,6 +5,12 @@ export function slotColumn(side: Side, slot: number, attr: SlotAttr): string {
   return `${side}.装備${slot}.${attr}`;
 }
 
+export const DISPLAY_ITEM_COUNT = 3;
+
+export function displayItemColumn(n: number): string {
+  return `表示装備${n}`;
+}
+
 /** 1..n から k 個選ぶ組を昇順で返す。 */
 export function combinations(n: number, k: number): number[][] {
   const out: number[][] = [];
@@ -68,6 +74,13 @@ export function expandOutput(node: OutputNode): OutputNode {
           };
         }
       }
+    }
+    case "displayItem": {
+      const all = Array.from({ length: DISPLAY_ITEM_COUNT }, (_, i) => i + 1);
+      const branch = (k: number): OutputNode => ({ kind: "column", column: displayItemColumn(k), cond: node.cond });
+      return node.quantity.kind === "any"
+        ? { kind: "group", op: "OR", children: all.map(branch) }
+        : { kind: "group", op: "AND", children: all.map(branch) };
     }
   }
 }

@@ -1,5 +1,5 @@
-import { useEffect, useState } from "preact/hooks";
-import { emptyQuery, type Battle, type Query } from "./model/types";
+import { useEffect, useRef, useState } from "preact/hooks";
+import { freshQuery, type Battle, type Query } from "./model/types";
 import { validateQuery } from "./model/validate";
 import { fetchCatalog, type Column } from "./schema/fetch";
 import { BattleSelect } from "./ui/battle-select";
@@ -8,20 +8,36 @@ import { ItemSection } from "./ui/item-section";
 import { OutputSection } from "./ui/output-tree";
 import { PreviewPane } from "./ui/preview-pane";
 import { ResultPane } from "./ui/result-pane";
+import { TemplateDrawer } from "./ui/template-drawer";
 import { Warnings } from "./ui/warnings";
 import type { ParseWarning } from "./parse/json";
-import { loadDraft, saveDraft } from "./storage/draft";
+import { clearDraft, loadDraft, saveDraft } from "./storage/draft";
 import { master } from "./master/load";
+
+/** 一時的に画面から隠す機能。復活させる場合はここを true に戻すだけでよい。 */
+const FEATURES = { itemSections: false, preview: false };
 
 export function App() {
   const [restored] = useState(() => loadDraft());
-  const [query, setQuery] = useState<Query>(restored?.query ?? emptyQuery("akakari-hougeki"));
+  const [query, setQuery] = useState<Query>(restored?.query ?? freshQuery("akakari-hougeki"));
   const [restoredNotice, setRestoredNotice] = useState(restored !== null);
   const [columns, setColumns] = useState<Column[]>([]);
-  const [catalogError, setCatalogError] = useState<string | null>(null);
   const [usingFallback, setUsingFallback] = useState(false);
   const [importWarnings, setImportWarnings] = useState<ParseWarning[]>([]);
   const [reloadKey, setReloadKey] = useState(0);
+  const matchRef = useRef<HTMLDivElement>(null);
+  const [matchHeight, setMatchHeight] = useState<number | null>(null);
+
+  useEffect(() => {
+    const el = matchRef.current;
+    if (el === null) return;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry !== undefined) setMatchHeight(entry.contentRect.height);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => saveDraft({ battle: query.battle, query }), 500);
@@ -30,16 +46,11 @@ export function App() {
 
   useEffect(() => {
     let alive = true;
-    setCatalogError(null);
-    fetchCatalog(query.battle)
-      .then((r) => {
-        if (!alive) return;
-        setColumns(r.columns);
-        setUsingFallback(r.usedFallback);
-      })
-      .catch((e: unknown) => {
-        if (alive) setCatalogError(e instanceof Error ? e.message : String(e));
-      });
+    fetchCatalog(query.battle).then((r) => {
+      if (!alive) return;
+      setColumns(r.columns);
+      setUsingFallback(r.usedFallback);
+    });
     return () => { alive = false; };
   }, [query.battle, reloadKey]);
 
@@ -47,48 +58,62 @@ export function App() {
 
   return (
     <main class="max-w-[1400px] mx-auto p-4 grid gap-3 lg:grid-cols-2">
+      <header class="lg:col-span-2 flex justify-between items-center">
+        <a href="/" class="flex items-center gap-2 hover:opacity-80 transition">
+          <img src="/logo.png" alt="kcverify" class="h-10 w-auto shrink-0" />
+          <span class="text-lg font-bold text-gray-800">赤仮クエリビルダー</span>
+        </a>
+        <a href="/" class="text-xs text-black bg-white/70 px-2 py-1 border border-gray-300 rounded hover:opacity-80 transition">
+          ← ツール一覧
+        </a>
+      </header>
+      <TemplateDrawer battle={query.battle} query={query} onLoadTemplate={(q) => setQuery(q)} />
       <div class="grid gap-3 content-start">
-        <h1 class="text-base font-bold">赤仮CSV クエリビルダー</h1>
         <p class="text-xs text-gray-400">マスタデータ最終更新: {master.generatedAt.slice(0, 10)}</p>
         {restoredNotice && (
           <p class="text-xs text-emp-1 bg-emp-4 rounded px-2 py-1 flex items-center gap-2">
             前回の続きを復元しました。
             <button type="button" class="underline" onClick={() => setRestoredNotice(false)}>閉じる</button>
+            <button type="button" class="underline" onClick={() => {
+              clearDraft();
+              setQuery(freshQuery(query.battle));
+              setRestoredNotice(false);
+            }}>破棄</button>
           </p>
-        )}
-        {catalogError !== null && (
-          <div class="border border-red-400 bg-red-50 rounded p-2 text-xs">
-            <p class="text-red-700">列カタログを取得できませんでした: {catalogError}</p>
-            <button type="button" class="border border-red-400 rounded px-2 py-0.5 mt-1"
-              onClick={() => setReloadKey((k) => k + 1)}>再試行</button>
-          </div>
         )}
         {usingFallback && (
-          <p class="text-xs text-amber-700 bg-amber-50 border border-amber-300 rounded px-2 py-1">
+          <p class="text-xs text-amber-700 bg-amber-50 border border-amber-300 rounded px-2 py-1 flex items-center gap-2">
             列カタログの取得に失敗したため、同梱データを使用しています(最新でない可能性があります)。
+            <button type="button" class="underline" onClick={() => setReloadKey((k) => k + 1)}>再試行</button>
           </p>
         )}
-        <BattleSelect value={query.battle} onChange={setBattle} />
-        <DateSection ranges={query.dateRanges} onChange={(r) => setQuery({ ...query, dateRanges: r })} />
-        <OutputSection
-          node={query.output}
-          columns={columns}
-          onChange={(n) => setQuery({ ...query, output: n })}
-        />
-        <ItemSection title="攻撃艦装備" node={query.attackerItems}
-          onChange={(n) => setQuery({ ...query, attackerItems: n })} />
-        <ItemSection title="防御艦装備" node={query.defenderItems}
-          onChange={(n) => setQuery({ ...query, defenderItems: n })} />
+        <div ref={matchRef} class="grid gap-3 content-start">
+          <BattleSelect value={query.battle} onChange={setBattle} />
+          <DateSection ranges={query.dateRanges} onChange={(r) => setQuery({ ...query, dateRanges: r })} />
+          <OutputSection
+            node={query.output}
+            columns={columns}
+            onChange={(n) => setQuery({ ...query, output: n })}
+          />
+        </div>
+        {FEATURES.itemSections && (
+          <>
+            <ItemSection title="攻撃艦装備" node={query.attackerItems}
+              onChange={(n) => setQuery({ ...query, attackerItems: n })} />
+            <ItemSection title="防御艦装備" node={query.defenderItems}
+              onChange={(n) => setQuery({ ...query, defenderItems: n })} />
+          </>
+        )}
       </div>
       <div class="grid gap-3 content-start">
         <Warnings validation={validateQuery(query, columns)} imports={importWarnings} />
         <ResultPane
           query={query}
           columns={columns}
+          matchHeight={matchHeight}
           onImport={(q, w) => { setQuery(q); setImportWarnings(w); }}
-          onLoadTemplate={(q) => setQuery(q)}
         />
-        <PreviewPane query={query} columns={columns} />
+        {FEATURES.preview && <PreviewPane query={query} columns={columns} />}
       </div>
     </main>
   );

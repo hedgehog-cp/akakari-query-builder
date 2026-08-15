@@ -41,10 +41,13 @@ export type SlotQuantity =
 
 export type SlotAttrCond = { attr: SlotAttr; cond: ValueCond };
 
+export type DisplayItemQuantity = { kind: "any" } | { kind: "all" };
+
 export type OutputNode =
   | { kind: "group"; op: "AND" | "OR" | "NOT"; children: OutputNode[] }
   | { kind: "column"; column: string; cond: ValueCond }
-  | { kind: "slot"; side: Side; quantity: SlotQuantity; attrs: SlotAttrCond[] };
+  | { kind: "slot"; side: Side; quantity: SlotQuantity; attrs: SlotAttrCond[] }
+  | { kind: "displayItem"; quantity: DisplayItemQuantity; cond: ValueCond };
 
 export type ItemAttr =
   | "装備名" | "装備ID" | "装備カテゴリ" | "api_type2"
@@ -86,5 +89,25 @@ export function emptyQuery(battle: Battle): Query {
     output: null,
     attackerItems: null,
     defenderItems: null,
+  };
+}
+
+/**
+ * アプリ起動時(下書きが無い場合)と「破棄」ボタンで使う初期値。
+ * emptyQuery() は「出力条件なし」を表す値としてパーサ・シリアライザ・各テストで
+ * 使われているため変更しない(出力キーの無いhjson読み込みが暗黙にフィルタ付きに
+ * なってしまうのを避ける)。
+ */
+export function freshQuery(battle: Battle): Query {
+  return {
+    ...emptyQuery(battle),
+    output: {
+      kind: "group", op: "AND",
+      children: [
+        { kind: "column", column: "クリティカル", cond: { kind: "cmp", op: "より大きい", value: 0 } },
+        { kind: "column", column: "ダメージ", cond: { kind: "cmp", op: "より大きい", value: 0 } },
+        { kind: "column", column: "攻撃艦", cond: { kind: "eq", values: ["自軍"] } },
+      ],
+    },
   };
 }
