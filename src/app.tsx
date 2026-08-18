@@ -58,14 +58,9 @@ export function App() {
 
   return (
     <main class="max-w-[1400px] mx-auto p-4 grid gap-3 lg:grid-cols-2">
-      <header class="lg:col-span-2 flex justify-between items-center">
-        <a href="/" class="flex items-center gap-2 hover:opacity-80 transition">
-          <img src="/logo.png" alt="kcverify" class="h-10 w-auto shrink-0" />
-          <span class="text-lg font-bold text-gray-800">赤仮クエリビルダー</span>
-        </a>
-        <a href="/" class="text-xs text-black bg-white/70 px-2 py-1 border border-gray-300 rounded hover:opacity-80 transition">
-          ← ツール一覧
-        </a>
+      <header class="lg:col-span-2 flex items-center gap-2">
+        <img src="./logo.png" alt="kcverify" class="h-10 w-auto shrink-0" />
+        <span class="text-lg font-bold text-gray-800">赤仮クエリビルダー</span>
       </header>
       <TemplateDrawer battle={query.battle} query={query} onLoadTemplate={(q) => setQuery(q)} />
       <div class="grid gap-3 content-start">

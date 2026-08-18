@@ -1,0 +1,29 @@
+{
+  "name": "akakari-query-builder",
+  "version": "1.0.0",
+  "private": true,
+  "description": "赤仮形式のCSVファイルのクエリを構築するGUI.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json && vite build",
+    "test": "vitest run",
+    "gen:master": "node tools/gen-master.mjs",
+    "update:schema-fallback": "node tools/update-schema-fallback.mjs"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@preact/preset-vite": "^2.10.6",
+    "@types/node": "^20.14.10",
+    "@types/prismjs": "^1.26.6",
+    "@types/sortablejs": "^1.15.9",
+    "preact": "^10.29.8",
+    "typescript": "^5.9.3",
+    "vite": "^5.4.21",
+    "vitest": "^2.1.9"
+  },
+  "dependencies": {
+    "prismjs": "^1.30.0",
+    "sortablejs": "^1.15.7"
+  }
+}

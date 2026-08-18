@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const src = resolve(root, ".repositories/api_start2/parsed");
-const out = resolve(root, "web/src/master/master.json");
+const out = resolve(root, "src/master/master.json");
 
 const read = (name) => JSON.parse(readFileSync(resolve(src, name), "utf-8"));
 

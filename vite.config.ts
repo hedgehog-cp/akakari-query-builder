@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [preact()],
   base: "./",
   build: {
-    outDir: "../docs/akakari-query-builder",
+    outDir: "dist",
     emptyOutDir: true,
   },
   test: {

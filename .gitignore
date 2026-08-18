@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.repositories/
+.env.local
+.claude/
+.vscode/
+.superpowers/

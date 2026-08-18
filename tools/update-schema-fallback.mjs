@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 // akakari-schema サイトから現行3世代の列カタログを取得し、
-// フェッチ失敗時のフォールバックとして web/src/schema/fallback/ に同梱する。
+// フェッチ失敗時のフォールバックとして src/schema/fallback/ に同梱する。
 import { writeFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const outDir = resolve(root, "web/src/schema/fallback");
+const outDir = resolve(root, "src/schema/fallback");
 const BASE = "https://hedgehog-cp.github.io/akakari-schema";
 
 const ids = [
