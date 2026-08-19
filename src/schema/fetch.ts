@@ -7,9 +7,13 @@ import fallbackMidnight from "./fallback/akakari-midnight-2024-07-20.json";
 export type { Column };
 
 /**
- * スキーマの配信元。akakari-schema サイトの公開ページ用JSON(`docs/data/<id>.json`)を
- * 参照する。`tableschema/*.schema.json` はそのサイトの Pages 配信対象(`docs/`)に
- * 含まれないため使えないが、`fields` の内容は同一。
+ * スキーマの配信元。akakari-schema が安定URLで配る Table Schema 本体を参照する。
+ *
+ *   {BASE}/tableschema/{世代ID}.schema.json
+ *
+ * 以前は画面用に変換された `{BASE}/data/{世代ID}.json` を見ていたが、向こうが
+ * その変換の段(publish.py)ごと廃止したため404になり、気づかないまま同梱データで
+ * 動き続けていた。取得先が生きているかは deploy.yml の死活確認で見る。
  */
 const BASE: string =
   import.meta.env.VITE_SCHEMA_BASE ?? "https://hedgehog-cp.github.io/akakari-schema";
@@ -24,7 +28,7 @@ const FALLBACK: Record<Battle, unknown> = {
 const cache = new Map<Battle, Column[]>();
 
 export function schemaUrl(battle: Battle): string {
-  return `${BASE}/data/${BATTLE_SCHEMA[battle]}.json`;
+  return `${BASE}/tableschema/${BATTLE_SCHEMA[battle]}.schema.json`;
 }
 
 export async function fetchCatalog(battle: Battle): Promise<{ columns: Column[]; usedFallback: boolean }> {

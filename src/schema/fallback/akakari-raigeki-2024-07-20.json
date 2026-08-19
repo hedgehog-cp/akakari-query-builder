@@ -1,10 +1,21 @@
 {
-  "id": "akakari-raigeki-2024-07-20",
-  "previous": "akakari-raigeki-2024-07-19",
-  "added": [
-    "装甲破砕"
+  "$schema": "https://datapackage.org/profiles/2.0/tableschema.json",
+  "name": "akakari-raigeki-2024-07-20",
+  "title": "赤仮雷撃戦.csv (2024-07-20以降の形式, 148列)",
+  "description": "装甲破砕 を追加. 現行形式.",
+  "fieldsMatch": "exact",
+  "missingValues": [
+    ""
   ],
-  "removed": [],
+  "primaryKey": [
+    "No."
+  ],
+  "sources": [
+    {
+      "title": "ElectronicObserverEN 88fe3f96 (2024-07-20) RedTorpedoBattleExportMap.cs",
+      "path": "https://github.com/ElectronicObserverEN/ElectronicObserver/commit/88fe3f96"
+    }
+  ],
   "fields": [
     {
       "name": "No.",
@@ -61,7 +72,6 @@
       "description": "夜戦に入る昼戦など, 結果が確定していない戦闘では空欄.",
       "constraints": {
         "enum": [
-          "完全勝利!!S",
           "勝利S",
           "勝利A",
           "戦術的勝利B",
@@ -227,7 +237,7 @@
       "name": "自艦隊",
       "type": "string",
       "title": "攻守の自軍艦隊",
-      "description": "この行に関わる自軍艦がどの艦隊に属するか. 連合艦隊でなければ 通常艦隊.",
+      "description": "この行に関わる自軍艦がどの艦隊に属するか. 連合艦隊でなければ 通常艦隊. 遊撃部隊(7隻編成)も連合艦隊ではないため 通常艦隊 になる.",
       "constraints": {
         "enum": [
           "通常艦隊",
@@ -333,7 +343,7 @@
       "name": "攻撃艦.編成順",
       "type": "integer",
       "title": "攻撃艦の編成順",
-      "description": "1始まり. 連合艦隊では第2艦隊が7〜12になる.",
+      "description": "1始まり. 連合艦隊では第2艦隊が7〜12になる. 遊撃部隊(7隻編成)では本隊のまま 7 まで伸びるため, 7 は 自艦隊 と併せて読む必要がある.",
       "constraints": {
         "minimum": 1,
         "maximum": 12
@@ -502,7 +512,7 @@
       "name": "攻撃艦.速力",
       "type": "string",
       "title": "攻撃艦の速力",
-      "description": "api_soku (0/5/10/15/20) を文字列に直したもの. 0 は陸上基地を表す.",
+      "description": "api_soku (0/5/10/15/20) を文字列に直したもの. 0 は陸上施設を表す.",
       "constraints": {
         "enum": [
           "陸上",
@@ -580,7 +590,7 @@
       "name": "攻撃艦.運",
       "type": "integer",
       "title": "攻撃艦の運",
-      "description": "自軍艦では装備込みの現在値で, ゲームの艦娘ステータス画面に表示される値と一致する. 近代化改修・装備・装備ボーナスをすべて含む. 深海棲艦では戦闘APIがこの値を渡さないため, 艦船マスタの素値に装備の上昇分を加えた値になる.",
+      "description": "自軍艦では装備込みの現在値で, ゲームの艦娘ステータス画面に表示される値と一致する. 近代化改修・装備・装備ボーナスをすべて含む. 深海棲艦では戦闘APIがこの値を渡さないため, 艦船マスタの素値がそのまま入る. 装備マスタに api_luck はあるが, 運を持つ装備は実在しないため上昇分は常に0.",
       "constraints": {
         "minimum": 0
       }
@@ -863,7 +873,7 @@
       "name": "防御艦.編成順",
       "type": "integer",
       "title": "防御艦の編成順",
-      "description": "1始まり. 連合艦隊では第2艦隊が7〜12になる.",
+      "description": "1始まり. 連合艦隊では第2艦隊が7〜12になる. 遊撃部隊(7隻編成)では本隊のまま 7 まで伸びるため, 7 は 自艦隊 と併せて読む必要がある.",
       "constraints": {
         "minimum": 1,
         "maximum": 12
@@ -1032,7 +1042,7 @@
       "name": "防御艦.速力",
       "type": "string",
       "title": "防御艦の速力",
-      "description": "api_soku (0/5/10/15/20) を文字列に直したもの. 0 は陸上基地を表す.",
+      "description": "api_soku (0/5/10/15/20) を文字列に直したもの. 0 は陸上施設を表す.",
       "constraints": {
         "enum": [
           "陸上",
@@ -1110,7 +1120,7 @@
       "name": "防御艦.運",
       "type": "integer",
       "title": "防御艦の運",
-      "description": "自軍艦では装備込みの現在値で, ゲームの艦娘ステータス画面に表示される値と一致する. 近代化改修・装備・装備ボーナスをすべて含む. 深海棲艦では戦闘APIがこの値を渡さないため, 艦船マスタの素値に装備の上昇分を加えた値になる.",
+      "description": "自軍艦では装備込みの現在値で, ゲームの艦娘ステータス画面に表示される値と一致する. 近代化改修・装備・装備ボーナスをすべて含む. 深海棲艦では戦闘APIがこの値を渡さないため, 艦船マスタの素値がそのまま入る. 装備マスタに api_luck はあるが, 運を持つ装備は実在しないため上昇分は常に0.",
       "constraints": {
         "minimum": 0
       }
@@ -1393,7 +1403,7 @@
       "name": "艦隊種類",
       "type": "string",
       "title": "自軍艦隊種類",
-      "description": "連合艦隊の種別(api_combined_flag). 連合艦隊を組んでいなければ 通常艦隊.",
+      "description": "連合艦隊の種別(api_combined_flag). 連合艦隊を組んでいなければ 通常艦隊. 遊撃部隊(7隻編成)も連合艦隊ではないため 通常艦隊 になる. この列だけでは6隻の通常艦隊と区別できず, 編成順 に 7 が現れるかどうかで判別する.",
       "constraints": {
         "enum": [
           "通常艦隊",

@@ -15,6 +15,19 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # 列カタログの取得先が生きているかを見るだけの独立したジョブ。
+  # 画面は取得に失敗しても同梱データで動いてしまうため、壊れても気づけない。
+  # deploy を待たせない(needs で繋がない)ので、向こうが一時的に落ちていても
+  # 配信は止まらず、失敗はワークフローの赤として表に出る。
+  schema-urls:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node tools/check-schema-urls.mjs
+
   build:
     runs-on: ubuntu-latest
     steps:

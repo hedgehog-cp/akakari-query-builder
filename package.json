@@ -9,7 +9,8 @@
     "build": "tsc -p tsconfig.json && vite build",
     "test": "vitest run",
     "gen:master": "node tools/gen-master.mjs",
-    "update:schema-fallback": "node tools/update-schema-fallback.mjs"
+    "update:schema-fallback": "node tools/update-schema-fallback.mjs",
+    "check:schema-urls": "node tools/check-schema-urls.mjs"
   },
   "license": "MIT",
   "devDependencies": {

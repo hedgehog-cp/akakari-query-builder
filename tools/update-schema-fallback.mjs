@@ -4,19 +4,13 @@
 import { writeFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { SCHEMA_IDS, schemaUrl } from "./schema-urls.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const outDir = resolve(root, "src/schema/fallback");
-const BASE = "https://hedgehog-cp.github.io/akakari-schema";
 
-const ids = [
-  "akakari-hougeki-2024-07-20",
-  "akakari-raigeki-2024-07-20",
-  "akakari-midnight-2024-07-20",
-];
-
-for (const id of ids) {
-  const url = `${BASE}/data/${id}.json`;
+for (const id of SCHEMA_IDS) {
+  const url = schemaUrl(id);
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`${url} の取得に失敗しました (${res.status})`);

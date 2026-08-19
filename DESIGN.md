@@ -57,6 +57,7 @@ Preact + Vite。列の定義は自前で持たず、実行時に akakari-schema 
 | **要素セレクタでフォントを統一する** | Tailwind の `.text-xs` はクラスセレクタなので `input, select, button { font-size: … }` に勝つ。統一したい箇所からはクラスを外す。→ 2.7 |
 | **`flex-wrap` の無い行に日本語ボタンを並べる** | 幅が足りないとボタンが min-content(1文字幅)まで潰れ、「+ 属性」が「+ 属 / 性」と割れた。行は折り返し、潰したくない要素には `whitespace-nowrap` を付ける |
 | **ビルド成果物をコミットする** | `docs/` に `dist` 相当を置いて配信していたため、差分がビルド結果で埋まった。GitHub Actions 配信に移した。→ 3.7 |
+| **フォールバックに助けられて壊れに気づかない** | akakari-schema が配信の形を変え、列カタログの取得先が404になっていたのに、同梱データへ落ちて動き続けていたので誰も気づかなかった。列挙値も1つ古いままだった。**別リポジトリのURLは契約なので、テストとCIの両方で縛る。** → 3.3 |
 | **プレビューが古いことに気づかない** | 条件を編集しても表示は前回の実行結果のまま。仕様どおりだが「クエリが適用されていない」ように見える。条件を変えたら「再実行」。→ 5 |
 
 ---
@@ -325,16 +326,28 @@ tools/
 
 ### 3.3 列カタログの取得とフォールバック
 
-`fetchCatalog(battle)` が `{BASE}/data/{世代ID}.json` を取り、`toCatalog()` で
-画面が使う項目だけに落とす。`BASE` の既定は akakari-schema の公開ページで、
-`.env.local` に `VITE_SCHEMA_BASE=…` を置けば差し替えられる(このファイルはコミットしない)。
+`fetchCatalog(battle)` が `{BASE}/tableschema/{世代ID}.schema.json`(akakari-schema が
+安定URLで配る Table Schema 本体)を取り、`toCatalog()` で画面が使う項目だけに落とす。
+`BASE` の既定は akakari-schema の公開ページで、`.env.local` に `VITE_SCHEMA_BASE=…` を
+置けば差し替えられる(このファイルはコミットしない)。
 
 取得に失敗したときは `src/schema/fallback/` の同梱データに落ち、画面上部に
 「同梱データを使用しています」と出す。**黙ってフォールバックしない。**
 同じ戦闘種別の2回目以降はメモリキャッシュを返す。
 
-世代IDは `src/model/types.ts` の `BATTLE_SCHEMA` に書いてある。akakari-schema に
-新しい世代が出たらここと同梱データの両方を更新する(→ 6)。
+**フォールバックがあるせいで、取得先が壊れても画面は動いてしまう。** 実際に
+akakari-schema が画面用JSON(`/data/<id>.json`)の生成を廃止したとき、こちらは
+気づかないまま同梱データで動き続けていた。そのため取得先は二重に縛る。
+
+- `src/schema/fetch.test.ts` がURLの形と、`tools/schema-urls.mjs` の世代一覧が
+  `BATTLE_SCHEMA` と一致することを確かめる
+- `tools/check-schema-urls.mjs`(`npm run check:schema-urls`)が実際に叩いて 200 と
+  `fields` の存在を見る。CI では deploy を待たせない独立したジョブとして走らせるので、
+  向こうが一時的に落ちていても配信は止まらず、壊れは赤として表に出る
+
+世代IDは `src/model/types.ts` の `BATTLE_SCHEMA` と `tools/schema-urls.mjs` の
+`SCHEMA_IDS` に書いてある。akakari-schema に新しい世代が出たら、この2つと
+同梱データを更新する(→ 6)。
 
 ### 3.4 マスタデータ
 
@@ -429,9 +442,10 @@ npm run gen:master               # api_start2 から master.json を作り直す
 
 裏を取れていない、あるいは上流に依存する。触るときに確かめる。
 
-- **akakari-schema に新世代が出たときは2箇所を直す。** `BATTLE_SCHEMA`(世代ID)と
-  同梱フォールバック(`npm run update:schema-fallback`)。前者だけ直すと、
-  取得できない環境で古い列カタログのまま動く
+- **akakari-schema に新世代が出たときは3箇所を直す。** `BATTLE_SCHEMA`(世代ID)、
+  `tools/schema-urls.mjs` の `SCHEMA_IDS`、同梱フォールバック
+  (`npm run update:schema-fallback`)。前者だけ直すと、取得できない環境で
+  古い列カタログのまま動く。前2つのずれは `src/schema/fetch.test.ts` が落とす
 - **列名が変わると、保存済みの下書き・テンプレートは古い列を指す。** 画面は
   「この戦闘種別に存在しません」と警告するが、自動では移行しない
 - **logbook 側の hjson の仕様変更に追従が要る。** `装備数` と `条件` を必ず対で出す、
