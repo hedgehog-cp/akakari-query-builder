@@ -1,16 +1,21 @@
-# 赤仮クエリビルダー
+# akakari-query-builder
 
-赤仮形式のCSVファイル(砲撃戦/雷撃戦/夜戦)を絞り込むクエリを組み立て、
-hjson と Google スプレッドシートの `QUERY` 文字列で出力する GUI。
-組み立てたクエリはその場で CSV に適用して結果を確認できる。
+[赤仮](https://github.com/noratako5/logbook)または[ElectronicObserverEN](https://github.com/ElectronicObserverEN/ElectronicObserver)が出力する赤仮形式のCSVファイルに対するクエリ構築をGUIで行えます。
 
 <https://hedgehog-cp.github.io/akakari-query-builder/>
 
-## 位置づけ
+特徴として、複数スロットに対するクエリ構築をGUI側で拡張しており「いずれか」や「N個以上」などを簡単に入力できます。
+出力はlogbookが定める`HJSON`およびGoogle Spreadsheetの`QUERY`関数の`WHERE`句に対応しています。
 
-[ダメージ検証用スプレ改](https://drive.google.com/drive/folders/1J_tBagjdXl81d0onHqKf--H5hf0TGHnw?usp=sharing)
-の周辺ツールのひとつ。列の定義は
-[akakari-schema](https://github.com/hedgehog-cp/akakari-schema) が提供する列カタログに従う。
+また、`JSON`(`HJSON`ではない)を入力することでGUIの入力状態を復元できます。
+
+現在、`赤仮砲撃戦.csv`、`赤仮夜戦.csv`、`赤仮雷撃戦.csv`それぞれの最新版に対応しています。
+
+## CSVを読み込んで試す
+
+組み立てた条件は、手元のCSVファイルをプレビュー欄にドラッグ&ドロップすればその場で適用できます。
+一致した行は200行ずつ表示され、TSV/CSVでのコピーとダウンロードができます。
+条件を変えたあとは「再実行」を押してください(数十万行を走査するため、編集のたびの自動実行はしません)。
 
 ## 開発
 
@@ -23,49 +28,7 @@ npm test        # 純関数の単体テスト (vitest)
 npm run build   # dist/ へ出力 (ビルド成果物, コミットしない)
 ```
 
-### 列カタログ
+---
 
-列カタログは実行時に akakari-schema サイト
-(<https://hedgehog-cp.github.io/akakari-schema>) から取得する
-(`src/schema/fetch.ts`)。既定値を上書きしたいときは `.env.local` に
-`VITE_SCHEMA_BASE=...` を置く(このファイルはコミットしない)。
-
-取得に失敗したときは `src/schema/fallback/` に同梱した現行3世代の
-カタログにフォールバックする。同梱物を更新するには:
-
-```shell
-npm run update:schema-fallback
-```
-
-### 艦これマスタデータ
-
-装備名・艦船名・海域名は `src/master/master.json` から引く。
-これは `api_start2` のマスタから必要な項目だけを抜き出したもの。
-再生成にはローカルに `.repositories/api_start2` のクローンが必要
-(`.repositories/` はコミットしない)。
-
-```shell
-npm run gen:master
-```
-
-## 公開
-
-`main` に push すると `.github/workflows/deploy.yml` がテストとビルドを実行し、
-`dist/` を GitHub Pages へ配信する。ビルド成果物はリポジトリにコミットしない。
-
-リポジトリ設定の **Settings → Pages → Build and deployment → Source** は
-`GitHub Actions` にしておくこと。
-
-## ライセンス
-
-MIT ([LICENSE](LICENSE)).
-
-このリポジトリは第三者が公開するデータを取り込んでいます。
-出典と上流のライセンスは [NOTICE.md](NOTICE.md) を参照してください。
-
-## 履歴
-
-もとは
-[script-for-damage-formula-verification](https://github.com/hedgehog-cp/script-for-damage-formula-verification)
-の `web/` として開発していたものを、2026-08-17 に独立したリポジトリへ分離した。
-分離前のコミット履歴も引き継いでいる。
+詳細は`DESIGN.md`を参照してください。
+ライセンスはMITです（`LICENSE`）。同梱データの出典は`NOTICE.md`に挙げています。
