@@ -13,18 +13,12 @@ const OP_LABEL: Record<GroupOp, string> = {
   NOT: "NOT",
 };
 
-/** 演算子ごとの色。画像で示された操作感に合わせ、種類が一目でわかるようにする。 */
-const OP_COLOR: Record<GroupOp, string> = {
-  AND: "bg-blue-100 border-blue-400 text-blue-900",
-  OR: "bg-amber-100 border-amber-500 text-amber-900",
-  NOT: "bg-rose-100 border-rose-400 text-rose-900",
-};
-
 /** 演算子を示す静的バッジ。opEditable=false の RuleGroup や、AND固定の
- * 装備条件の属性リストなど、切り替えさせたくない箇所で使う。 */
+ * 装備条件の属性リストなど、切り替えさせたくない箇所で使う。
+ * 演算子ごとの色分けはしない(画面の中で演算子だけが原色で浮くのを避ける)。 */
 export function OpBadge(props: { op: GroupOp }) {
   return (
-    <span class={`border rounded px-1 py-0.5 text-xs font-bold inline-block ${OP_COLOR[props.op]}`}>
+    <span class="border border-gray-300 bg-gray-50 text-gray-700 rounded px-1 py-0.5 font-bold inline-block whitespace-nowrap">
       {OP_LABEL[props.op]}
     </span>
   );
@@ -96,7 +90,9 @@ export function RuleGroup<T>(props: {
 
   return (
     <div class={props.depth === 0 ? "" : "border-l-2 border-emp-1 pl-2 ml-1"}>
-      <div class="flex items-center gap-1 py-0.5">
+      {/* 幅が足りないときは要素ごと折り返す。flex-wrap がないと日本語の
+          ボタン文字が1文字幅まで潰れて「+ 属 / 性」のように割れる。 */}
+      <div class="flex flex-wrap items-center gap-1 py-0.5">
         <button type="button"
           class="text-gray-500 hover:text-gray-800 w-4 text-center"
           onClick={() => setCollapsed((c) => !c)}
@@ -107,7 +103,7 @@ export function RuleGroup<T>(props: {
           <OpBadge op={props.op} />
         ) : (
           <select
-            class={`border rounded px-1 text-xs font-bold ${OP_COLOR[props.op]}`}
+            class="border border-gray-300 rounded px-1 font-bold shrink-0"
             value={props.op}
             onChange={(e) => props.onOpChange?.((e.target as HTMLSelectElement).value as GroupOp)}
           >
@@ -120,13 +116,13 @@ export function RuleGroup<T>(props: {
           <>
             {props.addRuleActions.map((a) => (
               <button key={a.label} type="button"
-                class="border border-emp-1 rounded px-2 py-0.5 text-xs hover:bg-emp-4"
+                class="border border-emp-1 rounded px-2 py-0.5 hover:bg-emp-4 whitespace-nowrap shrink-0"
                 onClick={a.onClick}>
                 {a.label}
               </button>
             ))}
             {props.onAddGroup !== undefined && (
-              <button type="button" class="border border-emp-1 rounded px-2 py-0.5 text-xs hover:bg-emp-4"
+              <button type="button" class="border border-emp-1 rounded px-2 py-0.5 hover:bg-emp-4 whitespace-nowrap shrink-0"
                 onClick={props.onAddGroup}>
                 + グループ
               </button>
@@ -135,7 +131,7 @@ export function RuleGroup<T>(props: {
         )}
         {props.headerExtra}
         {props.children.length === 0 && (props.emptyMessage === undefined ? DEFAULT_EMPTY_MESSAGE : props.emptyMessage) !== null && (
-          <span class="text-xs text-red-600">
+          <span class="text-xs text-red-600 whitespace-nowrap">
             {props.emptyMessage === undefined ? DEFAULT_EMPTY_MESSAGE : props.emptyMessage}
           </span>
         )}

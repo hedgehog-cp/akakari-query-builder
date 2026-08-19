@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { CsvParser, formatCsvRow, stripBom } from "./csv";
+import { CsvParser, formatCsvRow, formatTsvRow, stripBom } from "./csv";
 
 function parseAll(chunks: string[]): string[][] {
   const p = new CsvParser();
@@ -86,5 +86,16 @@ describe("実データの形", () => {
     expect(rows[0]).toHaveLength(8);
     expect(rows[0][6]).toBe("深海5,500t級軽巡洋艦");
     expect(rows[0][7]).toBe("120");
+  });
+});
+
+describe("formatTsvRow", () => {
+  it("必要なときだけ引用する", () => {
+    expect(formatTsvRow(["a", "b"])).toBe("a\tb");
+    // カンマは TSV では区切りではないので引用しない
+    expect(formatTsvRow(["a", "x,y"])).toBe("a\tx,y");
+    expect(formatTsvRow(["a", "x\ty"])).toBe('a\t"x\ty"');
+    expect(formatTsvRow(["a", 'x"y'])).toBe('a\t"x""y"');
+    expect(formatTsvRow(["a", "x\r\ny"])).toBe('a\t"x\r\ny"');
   });
 });

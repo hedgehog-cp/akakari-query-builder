@@ -97,3 +97,15 @@ export function formatCsvRow(cells: string[]): string {
     .map((c) => (NEEDS_QUOTE.test(c) ? `"${c.replace(/"/g, '""')}"` : c))
     .join(",");
 }
+
+const NEEDS_QUOTE_TSV = /["\t\r\n]/;
+
+/**
+ * 表計算ソフトへの貼り付け用。CSV と同じ引用規則をタブ区切りに適用する。
+ * (Excel/スプレッドシートは TSV でも "" によるエスケープを解釈する)
+ */
+export function formatTsvRow(cells: string[]): string {
+  return cells
+    .map((c) => (NEEDS_QUOTE_TSV.test(c) ? `"${c.replace(/"/g, '""')}"` : c))
+    .join("\t");
+}

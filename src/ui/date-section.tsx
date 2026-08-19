@@ -36,7 +36,7 @@ function renderRange(r: DateRange, onChange: (r: DateRange) => void, onRemove: (
 export function DateSection(props: { ranges: DateRange[]; onChange: (r: DateRange[]) => void }) {
   return (
     <section class="bg-bg-panel border border-gray-300 rounded p-3">
-      <h2 class="font-bold mb-2">日時</h2>
+      <h2 class="font-bold text-purple-900 mb-2">日時</h2>
       <RuleGroup<DateRange>
         op="OR"
         opEditable={false}

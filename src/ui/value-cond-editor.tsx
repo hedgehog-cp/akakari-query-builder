@@ -51,7 +51,7 @@ function EqEditor(props: {
           <button
             key={v}
             type="button"
-            class={`border rounded px-1.5 py-0.5 text-xs ${
+            class={`border rounded px-1.5 py-0.5 ${
               picked.has(v) ? "bg-emp-2 border-emp-1" : "border-gray-300 hover:bg-emp-4"
             }`}
             onClick={() => {
@@ -77,7 +77,7 @@ function EqEditor(props: {
           <button
             key={c.value}
             type="button"
-            class={`border rounded px-1.5 py-0.5 text-xs ${
+            class={`border rounded px-1.5 py-0.5 ${
               picked.has(c.value) ? "bg-emp-2 border-emp-1" : "border-gray-300 hover:bg-emp-4"
             }`}
             onClick={() => {
@@ -171,7 +171,7 @@ export function ValueCondEditor(props: {
 
       {props.pickerTarget != null && props.cond.kind === "eq" && (
         <>
-          <button type="button" class="border border-emp-1 rounded px-2 py-0.5 text-xs hover:bg-emp-4"
+          <button type="button" class="border border-emp-1 rounded px-2 py-0.5 hover:bg-emp-4"
             onClick={() => setPickerOpen(true)}>選択…</button>
           {pickerOpen && (
             <NamePicker

@@ -1,26 +1,85 @@
-import { useRef, useState } from "preact/hooks";
-import type { Query } from "../model/types";
+import { useEffect, useRef, useState } from "preact/hooks";
+import { BATTLE_LABEL, type Query } from "../model/types";
 import type { Column } from "../schema/catalog";
 import type { PreviewMessage } from "../eval/preview.worker";
+import { CsvParser, formatCsvRow, formatTsvRow, stripBom } from "../eval/csv";
 
 type State =
   | { kind: "idle" }
   | { kind: "running"; scanned: number; matched: number }
   | { kind: "mismatch"; missing: string[]; extra: string[] }
-  | { kind: "done"; scanned: number; matched: number; sample: string[][]; csv: string; ignored: string[] }
+  | {
+      kind: "done";
+      scanned: number;
+      matched: number;
+      rows: string[][];
+      truncated: boolean;
+      header: string[];
+      csv: string;
+      ignored: string[];
+    }
   | { kind: "error"; message: string };
 
+/** 1ページの表示行数。姉妹サイト(反証可能火力探索)の PAGE_SIZE と同じ。 */
+const PAGE_SIZE = 200;
+
+/**
+ * ヘッダ不一致の列名を並べる上限。列は155個あり、戦闘種別違いの CSV を落とすと
+ * ほぼ全列が並んで画面が埋まってしまうため、先頭だけ見せて残りは件数にする。
+ */
+const NAME_LIST_LIMIT = 10;
+
+function nameList(names: string[]): string {
+  if (names.length <= NAME_LIST_LIMIT) return names.join(", ");
+  return `${names.slice(0, NAME_LIST_LIMIT).join(", ")} ほか ${names.length - NAME_LIST_LIMIT} 件`;
+}
+
+/**
+ * ワーカーが返した CSV 文字列をタブ区切りに組み直す。
+ * ワーカー側で CSV と TSV の2本を作ると、44万行規模では巨大な文字列を
+ * 二重に抱えることになるため、TSV はコピーを押したときにここで作る。
+ */
+function csvToTsv(csv: string): string {
+  const parser = new CsvParser();
+  const rows = [...parser.push(csv), ...parser.flush()];
+  return rows.map(formatTsvRow).join("\r\n");
+}
+
+function download(text: string, name: string, type: string): void {
+  const blob = new Blob([text], { type });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
 export function PreviewPane(props: { query: Query; columns: Column[] }) {
-  const [enabled, setEnabled] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [state, setState] = useState<State>({ kind: "idle" });
+  const [page, setPage] = useState(0);
+  const [dragOver, setDragOver] = useState(false);
+  const [copied, setCopied] = useState(false);
+  /** 選択中の行(done.rows のインデックス)。Shift の起点は anchor。 */
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [anchor, setAnchor] = useState<number | null>(null);
   const workerRef = useRef<Worker | null>(null);
 
-  const run = () => {
-    if (file === null) return;
+  useEffect(() => () => workerRef.current?.terminate(), []);
+
+  const expectedFileName = `${BATTLE_LABEL[props.query.battle]}.csv`;
+
+  const clearSelection = () => {
+    setSelected(new Set());
+    setAnchor(null);
+  };
+
+  const run = (target: File) => {
     workerRef.current?.terminate();
     const worker = new Worker(new URL("../eval/preview.worker.ts", import.meta.url), { type: "module" });
     workerRef.current = worker;
+    setPage(0);
+    clearSelection();
     setState({ kind: "running", scanned: 0, matched: 0 });
     worker.onmessage = (e: MessageEvent<PreviewMessage>) => {
       const m = e.data;
@@ -32,92 +91,241 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
     worker.postMessage({
       query: props.query,
       header: props.columns.map((c) => c.name),
-      file,
+      file: target,
     });
   };
 
-  const download = (csv: string) => {
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "filtered.csv";
-    a.click();
-    URL.revokeObjectURL(a.href);
+  // 戦闘種別が違うために弾かれた CSV は、正しい戦闘種別に切り替えた時点で
+  // 自動的に走らせ直す。列カタログは戦闘種別ごとに取り直されるので、
+  // 「新しい列が届いた」= 切り替わったタイミングとして props.columns を見る。
+  // 依存に state を入れると mismatch → 実行 → mismatch で回り続けるため入れない。
+  // 成功済み(done)のときは自動再実行しない。44万行の走査を切り替えのたびに
+  // 始めてしまうため、そちらは「再実行」ボタンに任せる。
+  useEffect(() => {
+    if (state.kind === "mismatch" && file !== null) run(file);
+  }, [props.columns]);
+
+  // 受け取った時点で実行する。条件を編集するたびの自動再実行はしない
+  // (CSV は44万行を超えることがあり、そのたびに走らせると重すぎるため)。
+  const accept = (f: File) => {
+    setFile(f);
+    run(f);
   };
 
+  const pickFile = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".csv";
+    input.onchange = () => {
+      const f = input.files?.[0];
+      if (f !== undefined) accept(f);
+    };
+    input.click();
+  };
+
+  const copy = (text: string) => {
+    void navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const done = state.kind === "done" ? state : null;
+  const totalPages = done === null ? 1 : Math.max(1, Math.ceil(done.rows.length / PAGE_SIZE));
+  const start = page * PAGE_SIZE;
+  const pageRows = done === null ? [] : done.rows.slice(start, start + PAGE_SIZE);
+
+  // ページをまたぐ選択は扱わない。移動したら選択も起点も捨てる。
+  const goPage = (next: number) => {
+    setPage(next);
+    clearSelection();
+  };
+
+  const selectRow = (e: MouseEvent, index: number) => {
+    const additive = e.ctrlKey || e.metaKey;
+    if (e.shiftKey && anchor !== null) {
+      const [lo, hi] = anchor <= index ? [anchor, index] : [index, anchor];
+      const next = new Set(additive ? selected : []);
+      for (let i = lo; i <= hi; i++) next.add(i);
+      setSelected(next);
+      return; // 起点は動かさない(続けて範囲を広げ直せるように)
+    }
+    if (additive) {
+      const next = new Set(selected);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      setSelected(next);
+    } else {
+      setSelected(new Set([index]));
+    }
+    setAnchor(index);
+  };
+
+  /** 選択行(ヘッダ付き)。選択が空のときは null を返し、呼び出し側で全件を使う。 */
+  const selectedTable = (): string[][] | null => {
+    if (done === null || selected.size === 0) return null;
+    const rows = [...selected].sort((a, b) => a - b).map((i) => done.rows[i]);
+    return [done.header, ...rows];
+  };
+
+  const suffix = selected.size > 0 ? `(選択 ${selected.size} 行)` : "";
+
   return (
-    <section class="bg-bg-panel border border-gray-300 rounded p-3">
-      <label class="flex items-center gap-2 font-bold">
-        <input type="checkbox" checked={enabled}
-          onChange={(e) => setEnabled((e.target as HTMLInputElement).checked)} />
-        プレビュー
-      </label>
-      <p class="text-xs text-gray-500 mt-1">
-        CSV は44万行を超えることがあるため既定でOFFです。実行はボタンを押したときだけで、
-        編集のたびに再実行はしません。
-      </p>
-
-      {enabled && (
-        <div class="mt-2 grid gap-2">
-          <div class="flex flex-wrap items-center gap-2">
-            <input type="file" accept=".csv"
-              onChange={(e) => setFile((e.target as HTMLInputElement).files?.[0] ?? null)} />
-            <button type="button" disabled={file === null}
-              class="border border-emp-1 rounded px-3 py-0.5 text-xs hover:bg-emp-4 disabled:opacity-40"
-              onClick={run}>実行</button>
-          </div>
-
-          {state.kind === "running" && (
-            <p class="text-xs">走査 {state.scanned.toLocaleString()} 行 / 一致 {state.matched.toLocaleString()} 行…</p>
-          )}
-
-          {state.kind === "mismatch" && (
-            <div class="border border-red-400 bg-red-50 rounded p-2 text-xs">
-              <p class="text-red-700 font-bold">
-                CSV のヘッダが選択中の戦闘種別と一致しません。実行を中止しました。
-              </p>
-              {state.missing.length > 0 && <p>不足: {state.missing.join(", ")}</p>}
-              {state.extra.length > 0 && <p>余分: {state.extra.join(", ")}</p>}
-              <p class="text-gray-600">
-                旧世代の CSV か、日本語以外の環境で出力された CSV の可能性があります。
-              </p>
-            </div>
-          )}
-
-          {state.kind === "error" && <p class="text-xs text-red-600">{state.message}</p>}
-
-          {state.kind === "done" && (
-            <div class="grid gap-2">
-              <div class="flex flex-wrap items-center gap-2 text-xs">
-                <span>一致 {state.matched.toLocaleString()} 行 / 全 {state.scanned.toLocaleString()} 行</span>
-                <button type="button" class="border border-emp-1 rounded px-3 py-0.5 hover:bg-emp-4"
-                  onClick={() => download(state.csv)}>結果CSVをダウンロード</button>
-              </div>
-              {state.ignored.length > 0 && (
-                <p class="text-xs text-red-600">
-                  次の条件はプレビューに反映されていません: {state.ignored.join(", ")}
-                  (CSV の列だけでは評価できません)
-                </p>
-              )}
-              <p class="text-xs text-gray-500">先頭 {state.sample.length} 行のみ表示しています。</p>
-              <div class="overflow-auto max-h-[40vh] border border-gray-200 rounded">
-                <table class="text-xs whitespace-nowrap">
-                  <thead class="bg-gray-50 sticky top-0">
-                    <tr>{props.columns.map((c) => <th key={c.name} class="px-1 text-left">{c.name}</th>)}</tr>
-                  </thead>
-                  <tbody>
-                    {state.sample.map((r, i) => (
-                      <tr key={i} class="odd:bg-gray-50/50">
-                        {r.map((v, j) => <td key={j} class="px-1">{v}</td>)}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
+    <>
+      {copied && (
+        <div class="fixed top-5 left-1/2 -translate-x-1/2 bg-green-600 text-white text-sm px-4 py-2 rounded shadow-lg z-50">
+          クリップボードにコピーしました
         </div>
       )}
-    </section>
+      <section
+        class={`bg-bg-panel border rounded p-3 ${dragOver ? "border-emp-1 bg-emp-4/40" : "border-gray-300"}`}
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          const f = e.dataTransfer?.files?.[0];
+          if (f !== undefined) accept(f);
+        }}
+      >
+        <div class="flex flex-wrap items-center gap-2 mb-2">
+          <h2 class="font-bold text-purple-900">プレビュー</h2>
+          <button type="button" class="border border-gray-300 rounded px-2 py-0.5 hover:bg-emp-4 disabled:opacity-40"
+            disabled={done === null}
+            onClick={() => {
+              if (done === null) return;
+              const sel = selectedTable();
+              copy(sel === null ? csvToTsv(done.csv) : sel.map(formatTsvRow).join("\r\n"));
+            }}>TSVでコピー{suffix}</button>
+          <button type="button" class="border border-gray-300 rounded px-2 py-0.5 hover:bg-emp-4 disabled:opacity-40"
+            disabled={done === null}
+            onClick={() => {
+              if (done === null) return;
+              const sel = selectedTable();
+              copy(sel === null ? stripBom(done.csv) : sel.map(formatCsvRow).join("\r\n"));
+            }}>CSVでコピー{suffix}</button>
+          <button type="button" class="border border-gray-300 rounded px-2 py-0.5 hover:bg-emp-4 disabled:opacity-40"
+            disabled={done === null}
+            onClick={() => {
+              if (done === null) return;
+              const sel = selectedTable();
+              // ファイルは元のCSVと同じ形式(UTF-8 BOM付き・CRLF)で書き出す
+              const csv = sel === null ? done.csv : "\ufeff" + sel.map(formatCsvRow).join("\r\n") + "\r\n";
+              download(csv, "filtered.csv", "text/csv;charset=utf-8");
+            }}>
+            ダウンロード{suffix}
+          </button>
+          {selected.size > 0 && (
+            <button type="button" class="border border-gray-300 rounded px-2 py-0.5 hover:bg-emp-4"
+              onClick={clearSelection}>選択を解除</button>
+          )}
+          {file !== null && (
+            <button type="button" class="border border-emp-1 rounded px-2 py-0.5 hover:bg-emp-4"
+              onClick={() => run(file)}>再実行</button>
+          )}
+          {done !== null && (
+            <span class="bg-gray-800 text-white px-2 py-0.5 text-xs font-bold rounded">
+              {done.matched.toLocaleString()} 件
+            </span>
+          )}
+          {file !== null && <span class="text-xs text-gray-500">{file.name}</span>}
+        </div>
+
+        {state.kind === "running" && (
+          <p class="text-xs">走査 {state.scanned.toLocaleString()} 行 / 一致 {state.matched.toLocaleString()} 行…</p>
+        )}
+
+        {state.kind === "mismatch" && (
+          <div class="border border-red-400 bg-red-50 rounded p-2 text-xs mb-2">
+            <p class="text-red-700 font-bold">
+              CSV のヘッダが選択中の戦闘種別と一致しません。実行を中止しました。
+            </p>
+            {state.missing.length > 0 && <p>不足: {nameList(state.missing)}</p>}
+            {state.extra.length > 0 && <p>余分: {nameList(state.extra)}</p>}
+            <p class="text-gray-600">
+              選択中の戦闘種別は「{BATTLE_LABEL[props.query.battle]}」です。
+              旧世代の CSV か、別の戦闘種別・日本語以外の環境で出力された CSV の可能性があります。
+            </p>
+          </div>
+        )}
+
+        {state.kind === "error" && <p class="text-xs text-red-600 mb-2">{state.message}</p>}
+
+        {done === null ? (
+          <>
+            <div
+              class="border-2 border-dashed border-gray-300 rounded py-16 text-center text-gray-400 cursor-pointer hover:bg-emp-4/40"
+              onClick={pickFile}
+            >
+              {expectedFileName}をドラッグ&ドロップしてプレビュー
+            </div>
+            <p class="text-xs text-gray-500 mt-1">
+              クリックでファイルを選ぶこともできます。CSV は44万行を超えることがあるため、
+              読み込んだ時点でだけ実行し、条件を編集しても自動では再実行しません。
+            </p>
+          </>
+        ) : (
+          <div class="grid gap-2">
+            {done.ignored.length > 0 && (
+              <p class="text-xs text-red-600">
+                次の条件はプレビューに反映されていません: {done.ignored.join(", ")}
+                (CSV の列だけでは評価できません)
+              </p>
+            )}
+            <p class="text-xs text-gray-500">
+              一致 {done.matched.toLocaleString()} 行 / 走査 {done.scanned.toLocaleString()} 行。
+              {done.truncated
+                ? `表には先頭 ${done.rows.length.toLocaleString()} 行のみ表示しています(コピー・ダウンロードは全件です)。`
+                : ""}
+              {expectedFileName}を新たにドロップすると差し替わります。
+            </p>
+            {/* 155列あるため横スクロールはこのコンテナだけが持つ(ページ全体を
+                横に伸ばさない)。1ページ200行しか描画しないので列幅は内容なりでよい。 */}
+            <div class="overflow-auto max-h-[600px] border border-gray-300 rounded">
+              <table class="w-max text-xs border-collapse">
+                <thead class="bg-gray-200 sticky top-0 z-10">
+                  <tr>
+                    {done.header.map((name) => (
+                      <th key={name} class="px-1 text-left whitespace-nowrap font-bold">{name}</th>
+                    ))}
+                  </tr>
+                </thead>
+                {/* 行クリックで選択。Ctrl(Cmd)で追加/解除、Shiftで範囲。
+                    Shiftクリックでの文字列選択が邪魔になるので select-none。 */}
+                <tbody class="select-none">
+                  {pageRows.map((r, i) => {
+                    const index = start + i;
+                    const on = selected.has(index);
+                    return (
+                      <tr key={index}
+                        class={`cursor-pointer ${on ? "bg-emp-2" : "odd:bg-gray-50/50 hover:bg-emp-4/60"}`}
+                        onMouseDown={(e) => selectRow(e as MouseEvent, index)}>
+                        {r.map((v, j) => <td key={j} class="px-1 whitespace-nowrap">{v}</td>)}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div class="flex items-center justify-between gap-2 text-xs text-gray-600">
+              <span>
+                {done.rows.length === 0
+                  ? "0–0"
+                  : `${(start + 1).toLocaleString()}–${(start + pageRows.length).toLocaleString()}`}
+                {" / 全"}{done.matched.toLocaleString()}件
+                {selected.size > 0 && ` (選択 ${selected.size} 行)`}
+              </span>
+              <div class="flex items-center gap-1">
+                <button type="button" class="border border-gray-300 rounded px-2 py-0.5 hover:bg-emp-4 disabled:opacity-40"
+                  disabled={page === 0}
+                  onClick={() => goPage(Math.max(0, page - 1))}>← 前へ</button>
+                <button type="button" class="border border-gray-300 rounded px-2 py-0.5 hover:bg-emp-4 disabled:opacity-40"
+                  disabled={page >= totalPages - 1}
+                  onClick={() => goPage(Math.min(totalPages - 1, page + 1))}>次へ →</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
+    </>
   );
 }

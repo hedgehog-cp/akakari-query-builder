@@ -50,7 +50,7 @@ export function TemplateDrawer(props: {
   return (
     <>
       <button type="button"
-        class="fixed left-0 top-1/2 -translate-y-1/2 z-40 border border-gray-300 bg-bg-panel rounded-r px-1 py-3 text-xs hover:bg-emp-4"
+        class="fixed left-0 top-1/2 -translate-y-1/2 z-40 border border-gray-300 bg-bg-panel rounded-r px-1 py-3 hover:bg-emp-4"
         onClick={() => setOpen(true)}
         aria-label="テンプレート一覧を開く">
         📁

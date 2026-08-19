@@ -53,7 +53,7 @@ function renderItemCond(
     return (
       <div class="flex items-center gap-1 py-0.5">
         <span class="text-xs">装備が存在する</span>
-        <button type="button" class="border border-emp-1 rounded px-2 py-0.5 text-xs hover:bg-emp-4"
+        <button type="button" class="border border-emp-1 rounded px-2 py-0.5 hover:bg-emp-4"
           onClick={() => onChange(newAttrCond())}>
           条件を付ける
         </button>
@@ -189,9 +189,9 @@ export function ItemSection(props: {
   return (
     <section class="bg-bg-panel border border-gray-300 rounded p-3">
       <div class="flex items-center gap-2 mb-1">
-        <h2 class="font-bold">{props.title}</h2>
+        <h2 class="font-bold text-purple-900">{props.title}</h2>
         {props.node === null ? (
-          <button type="button" class="border border-emp-1 rounded px-2 py-0.5 text-xs hover:bg-emp-4"
+          <button type="button" class="border border-emp-1 rounded px-2 py-0.5 hover:bg-emp-4"
             onClick={() => props.onChange({
               kind: "count",
               count: { kind: "cmp", op: "以上", value: 1 },

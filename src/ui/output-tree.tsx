@@ -162,9 +162,9 @@ export function OutputSection(props: {
   return (
     <section class="bg-bg-panel border border-gray-300 rounded p-3">
       <div class="flex items-center gap-2 mb-2">
-        <h2 class="font-bold">出力</h2>
+        <h2 class="font-bold text-purple-900">出力</h2>
         {props.node === null ? (
-          <button type="button" class="border border-emp-1 rounded px-2 py-0.5 text-xs hover:bg-emp-4"
+          <button type="button" class="border border-emp-1 rounded px-2 py-0.5 hover:bg-emp-4"
             onClick={() => props.onChange({ kind: "group", op: "AND", children: [] })}>
             条件を組み立てる
           </button>

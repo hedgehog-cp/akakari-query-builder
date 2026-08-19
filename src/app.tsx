@@ -15,7 +15,7 @@ import { clearDraft, loadDraft, saveDraft } from "./storage/draft";
 import { master } from "./master/load";
 
 /** 一時的に画面から隠す機能。復活させる場合はここを true に戻すだけでよい。 */
-const FEATURES = { itemSections: false, preview: false };
+const FEATURES = { itemSections: false };
 
 export function App() {
   const [restored] = useState(() => loadDraft());
@@ -31,9 +31,10 @@ export function App() {
   useEffect(() => {
     const el = matchRef.current;
     if (el === null) return;
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (entry !== undefined) setMatchHeight(entry.contentRect.height);
+    const observer = new ResizeObserver(() => {
+      // contentRect は padding/border を含まない content-box のサイズ。右の出力欄は
+      // border-box で高さを指定するので、外枠の padding も含む実測値を渡す。
+      setMatchHeight(el.getBoundingClientRect().height);
     });
     observer.observe(el);
     return () => observer.disconnect();
@@ -63,13 +64,15 @@ export function App() {
         <span class="text-lg font-bold text-gray-800">赤仮クエリビルダー</span>
       </header>
       <TemplateDrawer battle={query.battle} query={query} onLoadTemplate={(q) => setQuery(q)} />
-      <div class="grid gap-3 content-start">
+      {/* 通知・警告は左右どちらの列にも属さない全幅の帯にする。左列に置くと
+          文言が狭い幅で折り返すうえ、通知の有無で右の出力欄の開始位置がずれる。 */}
+      <div class="lg:col-span-2 grid gap-2 min-w-0">
         <p class="text-xs text-gray-400">マスタデータ最終更新: {master.generatedAt.slice(0, 10)}</p>
         {restoredNotice && (
           <p class="text-xs text-emp-1 bg-emp-4 rounded px-2 py-1 flex items-center gap-2">
             前回の続きを復元しました。
-            <button type="button" class="underline" onClick={() => setRestoredNotice(false)}>閉じる</button>
-            <button type="button" class="underline" onClick={() => {
+            <button type="button" class="text-xs underline" onClick={() => setRestoredNotice(false)}>閉じる</button>
+            <button type="button" class="text-xs underline" onClick={() => {
               clearDraft();
               setQuery(freshQuery(query.battle));
               setRestoredNotice(false);
@@ -79,10 +82,14 @@ export function App() {
         {usingFallback && (
           <p class="text-xs text-amber-700 bg-amber-50 border border-amber-300 rounded px-2 py-1 flex items-center gap-2">
             列カタログの取得に失敗したため、同梱データを使用しています(最新でない可能性があります)。
-            <button type="button" class="underline" onClick={() => setReloadKey((k) => k + 1)}>再試行</button>
+            <button type="button" class="text-xs underline" onClick={() => setReloadKey((k) => k + 1)}>再試行</button>
           </p>
         )}
-        <div ref={matchRef} class="grid gap-3 content-start">
+        <Warnings validation={validateQuery(query, columns)} imports={importWarnings} />
+      </div>
+      <div class="grid gap-3 content-start min-w-0">
+        {/* 3枚をひとつの枠にまとめ、右の出力欄と1対1で向き合って見えるようにする。 */}
+        <div ref={matchRef} class="border border-gray-300 rounded bg-bg-main p-2 grid gap-2 content-start">
           <BattleSelect value={query.battle} onChange={setBattle} />
           <DateSection ranges={query.dateRanges} onChange={(r) => setQuery({ ...query, dateRanges: r })} />
           <OutputSection
@@ -100,15 +107,16 @@ export function App() {
           </>
         )}
       </div>
-      <div class="grid gap-3 content-start">
-        <Warnings validation={validateQuery(query, columns)} imports={importWarnings} />
+      <div class="grid gap-3 content-start min-w-0">
         <ResultPane
           query={query}
           columns={columns}
           matchHeight={matchHeight}
           onImport={(q, w) => { setQuery(q); setImportWarnings(w); }}
         />
-        {FEATURES.preview && <PreviewPane query={query} columns={columns} />}
+      </div>
+      <div class="lg:col-span-2 min-w-0">
+        <PreviewPane query={query} columns={columns} />
       </div>
     </main>
   );

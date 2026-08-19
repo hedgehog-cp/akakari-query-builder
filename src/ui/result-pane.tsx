@@ -138,34 +138,39 @@ export function ResultPane(props: {
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => void handleDrop(e)}
       >
-      <div class="flex items-center gap-2 mb-2">
-        <div class="flex gap-1">
-          <button type="button"
-            class={`border rounded px-2 py-0.5 text-xs ${tab === "hjson" ? "bg-emp-2 border-emp-1" : "border-gray-300 hover:bg-emp-4"}`}
-            onClick={() => setTab("hjson")}>hjson</button>
-          <button type="button"
-            class={`border rounded px-2 py-0.5 text-xs ${tab === "query" ? "bg-emp-2 border-emp-1" : "border-gray-300 hover:bg-emp-4"}`}
-            onClick={() => setTab("query")}>QUERY</button>
+      {/* 表示形式の切り替えと操作ボタンは1本の行に左詰めで並べる。右端に寄せると
+          出力欄の幅によってボタンの位置が動き、目で追いにくいため。 */}
+      <div class="flex flex-wrap items-center gap-2 mb-2">
+        <div class="flex flex-wrap items-center gap-3 border border-gray-300 rounded px-2 py-0.5">
+          <label class="flex items-center gap-1">
+            <input type="radio" name="output-format" checked={tab === "hjson"}
+              onChange={() => setTab("hjson")} />
+            JSON
+          </label>
+          <label class="flex items-center gap-1">
+            <input type="radio" name="output-format" checked={tab === "query"}
+              onChange={() => setTab("query")} />
+            Google Visualization Query
+          </label>
         </div>
-        <div class="ml-auto flex gap-1">
-          <button type="button" class="border border-gray-300 rounded px-2 py-0.5 text-xs hover:bg-emp-4"
-            onClick={() => {
-              void navigator.clipboard.writeText(tab === "hjson" ? draftText : text);
-              setCopied(true);
-              setTimeout(() => setCopied(false), 2000);
-            }}>コピー</button>
-          <button type="button" class="border border-gray-300 rounded px-2 py-0.5 text-xs hover:bg-emp-4"
-            onClick={() => {
-              const blob = new Blob([tab === "hjson" ? draftText : text], { type: "application/json;charset=utf-8" });
-              const a = document.createElement("a");
-              a.href = URL.createObjectURL(blob);
-              a.download = "akakari-query.hjson";
-              a.click();
-              URL.revokeObjectURL(a.href);
-            }}>ダウンロード</button>
-          <button type="button" class="border border-gray-300 rounded px-2 py-0.5 text-xs hover:bg-emp-4"
-            onClick={() => void pickFile()}>JSON を読み込む</button>
-        </div>
+        <button type="button" class="border border-gray-300 rounded px-2 py-0.5 hover:bg-emp-4"
+          onClick={() => {
+            void navigator.clipboard.writeText(tab === "hjson" ? draftText : text);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          }}>コピー</button>
+        <button type="button" class="border border-gray-300 rounded px-2 py-0.5 hover:bg-emp-4"
+          onClick={() => {
+            const blob = new Blob([tab === "hjson" ? draftText : text], { type: "application/json;charset=utf-8" });
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = "akakari-query.hjson";
+            a.click();
+            URL.revokeObjectURL(a.href);
+          }}>ダウンロード</button>
+        <button type="button" class="border border-gray-300 rounded px-2 py-0.5 hover:bg-emp-4"
+          onClick={() => void pickFile()}>JSON を読み込む</button>
+        <span class="text-xs text-gray-500">JSONをドラッグ&ドロップして読み込み</span>
       </div>
       {error !== null && (
         <p class="text-xs text-red-600 mb-1">読み込めませんでした: {error}</p>

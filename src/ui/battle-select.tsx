@@ -10,7 +10,7 @@ function optionLabel(b: Battle): string {
 export function BattleSelect(props: { value: Battle; onChange: (b: Battle) => void }) {
   return (
     <section class="bg-bg-panel border border-gray-300 rounded p-3">
-      <h2 class="font-bold mb-2">戦闘種別</h2>
+      <h2 class="font-bold text-purple-900 mb-2">戦闘種別</h2>
       <select
         class="border border-gray-300 rounded px-2 py-1"
         value={props.value}

@@ -71,11 +71,11 @@ export function SlotNodeEditor(props: {
         }]}
         headerExtra={
           <>
-            <select class="border border-gray-300 rounded px-1" value={node.side}
+            <select class="border border-gray-300 rounded px-1 shrink-0" value={node.side}
               onChange={(e) => props.onChange({ ...node, side: (e.target as HTMLSelectElement).value as Side })}>
               {SIDES.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
-            <select class="border border-gray-300 rounded px-1" value={quantityValue(node.quantity)}
+            <select class="border border-gray-300 rounded px-1 shrink-0" value={quantityValue(node.quantity)}
               onChange={(e) => props.onChange({
                 ...node, quantity: parseQuantity((e.target as HTMLSelectElement).value),
               })}>
@@ -87,8 +87,8 @@ export function SlotNodeEditor(props: {
               <option value="all">すべてのスロットが</option>
               <option value="none">どのスロットも満たさない</option>
             </select>
-            <span class="text-xs">次を満たす</span>
-            <span class="text-xs text-gray-500">
+            <span class="text-xs whitespace-nowrap">次を満たす</span>
+            <span class="text-xs text-gray-500 whitespace-nowrap">
               (装備1〜{SLOT_COUNT}、展開すると{branchCount(node.quantity)}分岐)
             </span>
           </>

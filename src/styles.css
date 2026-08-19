@@ -1,0 +1,25 @@
+/*
+  フォントの統一。
+  ネイティブのフォームコントロール(input/select/textarea/button)は指定がないと
+  OS 既定の UI フォント・サイズで描かれ、本文と字面が揃わない。姉妹サイト
+  (../falsification-search/falsification-search.css)と同じ本文フォントを body に
+  与えたうえで、コントロールにはそれを継承させる。
+
+  サイズ 0.8125rem(13px)は姉妹サイトの .sheet-input と同じ値。ここは要素
+  セレクタなので、Tailwind のクラス(.text-xs / .font-mono など)を付けた箇所は
+  そちらが優先される(出力欄の等幅テキストエリアなど、意図して外したい箇所は
+  クラス側で上書きする)。
+*/
+body {
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+}
+
+input,
+select,
+textarea,
+button {
+  font-family: inherit;
+  font-size: 0.8125rem;
+}

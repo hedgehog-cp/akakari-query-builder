@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { master, equipTypeName, isAbyssal, shipTypeName, ABYSSAL_MIN_SHIP_ID } from "../master/load";
-import { EQUIP_GROUPS, isOther } from "../master/groups";
+import { EQUIP_GROUPS, inEquipGroup } from "../master/groups";
 import type { NameTarget } from "./name-target";
 
 type Row = { id: number; name: string; sub: string };
@@ -8,10 +8,8 @@ type Row = { id: number; name: string; sub: string };
 function useEquipRows(groupIndex: number, typeId: number | null, q: string): Row[] {
   return useMemo(() => {
     const group = EQUIP_GROUPS[groupIndex];
-    const inGroup = (t: number) =>
-      group.label === "その他" ? isOther(t) : group.typeIds.includes(t);
     return master.equips
-      .filter((e) => inGroup(e.type2))
+      .filter((e) => inEquipGroup(group, e.type2))
       .filter((e) => typeId === null || e.type2 === typeId)
       .filter((e) => q === "" || e.name.includes(q))
       .map((e) => ({ id: e.id, name: e.name, sub: equipTypeName(e.type2) }));
@@ -58,10 +56,7 @@ export function NamePicker(props: {
   const rows = isEquip ? equipRows : shipRows;
 
   const subTypes = isEquip
-    ? master.equipTypes.filter((t) =>
-        EQUIP_GROUPS[groupIndex].label === "その他"
-          ? isOther(t.id)
-          : EQUIP_GROUPS[groupIndex].typeIds.includes(t.id))
+    ? master.equipTypes.filter((t) => inEquipGroup(EQUIP_GROUPS[groupIndex], t.id))
     : master.shipTypes;
 
   const valueOf = (r: Row): string | number =>
@@ -88,13 +83,13 @@ export function NamePicker(props: {
           {isEquip
             ? EQUIP_GROUPS.map((g, i) => (
                 <button key={g.label} type="button"
-                  class={`border rounded px-2 py-0.5 text-xs ${
+                  class={`border rounded px-2 py-0.5 ${
                     i === groupIndex ? "bg-emp-2 border-emp-1" : "border-gray-300 hover:bg-emp-4"}`}
                   onClick={() => { setGroupIndex(i); setTypeId(null); }}>{g.label}</button>
               ))
             : [false, true].map((a) => (
                 <button key={String(a)} type="button"
-                  class={`border rounded px-2 py-0.5 text-xs ${
+                  class={`border rounded px-2 py-0.5 ${
                     a === abyssal ? "bg-emp-2 border-emp-1" : "border-gray-300 hover:bg-emp-4"}`}
                   onClick={() => { setAbyssal(a); setTypeId(null); }}>
                   {a ? `深海棲艦 (api_id ${ABYSSAL_MIN_SHIP_ID}以上)` : "自軍"}
@@ -139,9 +134,9 @@ export function NamePicker(props: {
           <span class="text-xs text-gray-500">
             改造艦は別名です。<code>島風</code> を選んでも <code>島風改</code> は拾いません。
           </span>
-          <button type="button" class="border border-gray-300 rounded px-3 py-1 text-xs ml-auto"
+          <button type="button" class="border border-gray-300 rounded px-3 py-1 ml-auto"
             onClick={props.onClose}>キャンセル</button>
-          <button type="button" class="border border-emp-1 bg-emp-2 rounded px-3 py-1 text-xs"
+          <button type="button" class="border border-emp-1 bg-emp-2 rounded px-3 py-1"
             onClick={() => { props.onPick(picked); props.onClose(); }}>確定</button>
         </div>
       </div>

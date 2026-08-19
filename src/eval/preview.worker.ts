@@ -8,10 +8,27 @@ export type PreviewRequest = { query: Query; header: string[]; file: File };
 export type PreviewMessage =
   | { type: "progress"; scanned: number; matched: number }
   | { type: "header-mismatch"; missing: string[]; extra: string[] }
-  | { type: "done"; scanned: number; matched: number; sample: string[][]; csv: string; ignored: string[] }
+  | {
+      type: "done";
+      scanned: number;
+      matched: number;
+      /** 画面のページ送り用に保持した先頭 PREVIEW_ROWS 件。 */
+      rows: string[][];
+      /** 一致行が PREVIEW_ROWS を超えて rows が打ち切られたか。 */
+      truncated: boolean;
+      header: string[];
+      csv: string;
+      ignored: string[];
+    }
   | { type: "error"; message: string };
 
-const SAMPLE_LIMIT = 200;
+/**
+ * 画面に保持する一致行の上限。1ページ200行なので50ページぶん。
+ * 全一致行は csv 文字列としても返しており、コピー・ダウンロードはそちらを使うため、
+ * ここを増やしても得られるのは「さらに奥のページをめくれる」ことだけ。
+ * 155列×数十万行を配列のまま持つとメモリを食い潰すので上限を設ける。
+ */
+const PREVIEW_ROWS = 10000;
 const PROGRESS_EVERY = 20000;
 
 function post(msg: PreviewMessage): void {
@@ -30,7 +47,7 @@ self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
     const state: { compiled: ReturnType<typeof compileQuery> | null } = { compiled: null };
     let scanned = 0;
     let matched = 0;
-    const sample: string[][] = [];
+    const keptRows: string[][] = [];
     const out: string[] = [];
 
     const handle = (rows: string[][]): boolean => {
@@ -52,7 +69,7 @@ self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
         scanned++;
         if (state.compiled !== null && state.compiled.predicate(row)) {
           matched++;
-          if (sample.length < SAMPLE_LIMIT) sample.push(row);
+          if (keptRows.length < PREVIEW_ROWS) keptRows.push(row);
           out.push(formatCsvRow(row));
         }
         if (scanned % PROGRESS_EVERY === 0) post({ type: "progress", scanned, matched });
@@ -70,7 +87,8 @@ self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
     // 元のCSVと同じ形式で書き出す: UTF-8 BOM付き・CRLF・ヘッダ行あり
     const csv = "﻿" + out.join("\r\n") + "\r\n";
     post({
-      type: "done", scanned, matched, sample, csv,
+      type: "done", scanned, matched, rows: keptRows, truncated: matched > keptRows.length,
+      header: csvHeader ?? header, csv,
       ignored: state.compiled?.ignored ?? [],
     });
   } catch (err) {
