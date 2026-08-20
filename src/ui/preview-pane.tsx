@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from "preact/hooks";
+import type { VNode } from "preact";
+import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { BATTLE_LABEL, type Query } from "../model/types";
 import type { Column } from "../schema/catalog";
 import type { PreviewMessage } from "../eval/preview.worker";
 import { CsvParser, formatCsvRow, formatTsvRow, stripBom } from "../eval/csv";
+import { SectionToggle } from "./collapsible";
 
 type State =
   | { kind: "idle" }
@@ -63,6 +65,7 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
   /** 選択中の行(done.rows のインデックス)。Shift の起点は anchor。 */
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [anchor, setAnchor] = useState<number | null>(null);
+  const [open, setOpen] = useState(true);
   const workerRef = useRef<Worker | null>(null);
 
   useEffect(() => () => workerRef.current?.terminate(), []);
@@ -140,17 +143,29 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
     clearSelection();
   };
 
-  const selectRow = (e: MouseEvent, index: number) => {
+  /*
+    選択と起点は ref からも読めるようにしておく。下の selectRow を
+    「毎回同じ関数」にするためで、そうしないと行 vnode を使い回したときに
+    古い selected/anchor を掴んだままのハンドラが残ってしまう。
+  */
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
+  const anchorRef = useRef(anchor);
+  anchorRef.current = anchor;
+
+  const selectRow = useCallback((e: MouseEvent, index: number) => {
     const additive = e.ctrlKey || e.metaKey;
-    if (e.shiftKey && anchor !== null) {
-      const [lo, hi] = anchor <= index ? [anchor, index] : [index, anchor];
-      const next = new Set(additive ? selected : []);
+    const anchorNow = anchorRef.current;
+    const selectedNow = selectedRef.current;
+    if (e.shiftKey && anchorNow !== null) {
+      const [lo, hi] = anchorNow <= index ? [anchorNow, index] : [index, anchorNow];
+      const next = new Set(additive ? selectedNow : []);
       for (let i = lo; i <= hi; i++) next.add(i);
       setSelected(next);
       return; // 起点は動かさない(続けて範囲を広げ直せるように)
     }
     if (additive) {
-      const next = new Set(selected);
+      const next = new Set(selectedNow);
       if (next.has(index)) next.delete(index);
       else next.add(index);
       setSelected(next);
@@ -158,7 +173,68 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
       setSelected(new Set([index]));
     }
     setAnchor(index);
-  };
+  }, []);
+
+  /*
+    行 vnode のキャッシュ。Preact は前回と同一の vnode を見つけると、その部分木の
+    差分計算を丸ごと省く(diff/index.js の _original 比較)。これを使い、選択の
+    色が変わった行だけを作り直して他の行は前回のものを返す。素直に毎回作り直すと、
+    1行クリックするたびに 200行×155列 = 3万セルぶんの vnode を作って比べることに
+    なり、実測で 30ms 前後かかっていた。
+  */
+  const rowCache = useRef(new Map<number, { on: boolean; node: VNode }>());
+  const rowCacheKey = useRef<{ done: unknown; page: number }>({ done: null, page: -1 });
+
+  /*
+    表は 200行 × 155列 = 3万セルあり、素直に書くと開閉やコピー通知など無関係な
+    再描画のたびに Preact がこの3万セルを差分計算してしまう(実測で 1回 30ms 前後)。
+    行データ・ページ・選択が変わらない限り同じ vnode を返せば、Preact は
+    その部分木の差分計算ごと省略する。
+  */
+  const table = useMemo(() => {
+    if (done === null) return null;
+    const from = page * PAGE_SIZE;
+    const rows = done.rows.slice(from, from + PAGE_SIZE);
+    // 行の中身そのものが変わる(別のCSV・別ページ)ときはキャッシュを捨てる。
+    if (rowCacheKey.current.done !== done || rowCacheKey.current.page !== page) {
+      rowCache.current.clear();
+      rowCacheKey.current = { done, page };
+    }
+    return (
+      // 155列あるため横スクロールはこのコンテナだけが持つ(ページ全体を
+      // 横に伸ばさない)。1ページ200行しか描画しないので列幅は内容なりでよい。
+      <div class="contain-layout overflow-auto max-h-[600px] border border-gray-300 rounded">
+        <table class="w-max text-xs border-collapse">
+          <thead class="bg-gray-200 sticky top-0 z-10">
+            <tr>
+              {done.header.map((name) => (
+                <th key={name} class="px-1 text-left whitespace-nowrap font-bold">{name}</th>
+              ))}
+            </tr>
+          </thead>
+          {/* 行クリックで選択。Ctrl(Cmd)で追加/解除、Shiftで範囲。
+              Shiftクリックでの文字列選択が邪魔になるので select-none。 */}
+          <tbody class="select-none">
+            {rows.map((r, i) => {
+              const index = from + i;
+              const on = selected.has(index);
+              const cached = rowCache.current.get(index);
+              if (cached !== undefined && cached.on === on) return cached.node;
+              const node = (
+                <tr key={index}
+                  class={`cursor-pointer ${on ? "bg-emp-2" : "odd:bg-gray-50/50 hover:bg-emp-4/60"}`}
+                  onMouseDown={(e) => selectRow(e as MouseEvent, index)}>
+                  {r.map((v, j) => <td key={j} class="px-1 whitespace-nowrap">{v}</td>)}
+                </tr>
+              );
+              rowCache.current.set(index, { on, node });
+              return node;
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  }, [done, page, selected, selectRow]);
 
   /** 選択行(ヘッダ付き)。選択が空のときは null を返し、呼び出し側で全件を使う。 */
   const selectedTable = (): string[][] | null => {
@@ -187,8 +263,10 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
           if (f !== undefined) accept(f);
         }}
       >
-        <div class="flex flex-wrap items-center gap-2 mb-2">
-          <h2 class="font-bold text-purple-900">プレビュー</h2>
+        <div class="flex flex-wrap items-center gap-2">
+          <SectionToggle open={open} onToggle={() => setOpen(!open)}>
+            <h2 class="font-bold text-purple-900">プレビュー</h2>
+          </SectionToggle>
           <button type="button" class="border border-gray-300 rounded px-2 py-0.5 hover:bg-emp-4 disabled:opacity-40"
             disabled={done === null}
             onClick={() => {
@@ -230,6 +308,7 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
           {file !== null && <span class="text-xs text-gray-500">{file.name}</span>}
         </div>
 
+        <div class={open ? "mt-2" : "collapsed"}>
         {state.kind === "running" && (
           <p class="text-xs">走査 {state.scanned.toLocaleString()} 行 / 一致 {state.matched.toLocaleString()} 行…</p>
         )}
@@ -278,34 +357,7 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
                 : ""}
               {expectedFileName}を新たにドロップすると差し替わります。
             </p>
-            {/* 155列あるため横スクロールはこのコンテナだけが持つ(ページ全体を
-                横に伸ばさない)。1ページ200行しか描画しないので列幅は内容なりでよい。 */}
-            <div class="overflow-auto max-h-[600px] border border-gray-300 rounded">
-              <table class="w-max text-xs border-collapse">
-                <thead class="bg-gray-200 sticky top-0 z-10">
-                  <tr>
-                    {done.header.map((name) => (
-                      <th key={name} class="px-1 text-left whitespace-nowrap font-bold">{name}</th>
-                    ))}
-                  </tr>
-                </thead>
-                {/* 行クリックで選択。Ctrl(Cmd)で追加/解除、Shiftで範囲。
-                    Shiftクリックでの文字列選択が邪魔になるので select-none。 */}
-                <tbody class="select-none">
-                  {pageRows.map((r, i) => {
-                    const index = start + i;
-                    const on = selected.has(index);
-                    return (
-                      <tr key={index}
-                        class={`cursor-pointer ${on ? "bg-emp-2" : "odd:bg-gray-50/50 hover:bg-emp-4/60"}`}
-                        onMouseDown={(e) => selectRow(e as MouseEvent, index)}>
-                        {r.map((v, j) => <td key={j} class="px-1 whitespace-nowrap">{v}</td>)}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            {table}
             <div class="flex items-center justify-between gap-2 text-xs text-gray-600">
               <span>
                 {done.rows.length === 0
@@ -325,6 +377,7 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
             </div>
           </div>
         )}
+        </div>
       </section>
     </>
   );

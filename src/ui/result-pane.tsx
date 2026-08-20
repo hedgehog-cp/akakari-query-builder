@@ -9,7 +9,6 @@ import { JsonHighlight } from "./json-highlight";
 export function ResultPane(props: {
   query: Query;
   columns: Column[];
-  matchHeight: number | null;
   onImport: (q: Query, warnings: ParseWarning[]) => void;
 }) {
   const [error, setError] = useState<string | null>(null);
@@ -22,6 +21,7 @@ export function ResultPane(props: {
   const preRef = useRef<HTMLPreElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [preSize, setPreSize] = useState<{ width: number; height: number } | null>(null);
+  const [resizedHeight, setResizedHeight] = useState<string | null>(null);
 
   // textarea をネイティブのリサイズハンドルで手動拡大しても、構文強調の黒背景(pre)が
   // CSSクラスだけでは追従しないため、実測してインラインstyleで直接反映する。
@@ -34,14 +34,15 @@ export function ResultPane(props: {
       // getBoundingClientRect() の border-box サイズをそのまま使う。
       const rect = el.getBoundingClientRect();
       setPreSize({ width: rect.width, height: rect.height });
+      // 普段の高さは左の入力欄と揃うようグリッド側(flex-1)が決めるので、
+      // textarea 自身は h-full で追従するだけ。ただし手動リサイズしたときだけは
+      // インラインの height が付くため、それを枠の下限として親に伝え、
+      // 外側(=左の3枠)も一緒に伸び縮みするようにする。
+      setResizedHeight(el.style.height === "" ? null : el.style.height);
     });
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
-
-  const heightStyle = props.matchHeight !== null
-    ? ({ "--match-h": `${props.matchHeight}px` } as Record<string, string>)
-    : undefined;
 
   const columnNames = props.columns.map((c) => c.name);
   const hjsonText = serializeQuery(props.query);
@@ -134,7 +135,7 @@ export function ResultPane(props: {
           クリップボードにコピーしました
         </div>
       )}
-      <section class="bg-bg-panel border border-gray-300 rounded p-3"
+      <section class="bg-bg-panel border border-gray-300 rounded p-3 flex flex-col h-full"
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => void handleDrop(e)}
       >
@@ -192,20 +193,20 @@ export function ResultPane(props: {
           {gq.warnings.map((w, i) => <p key={i} class="text-amber-700">{w}</p>)}
         </div>
       )}
-      <div class={tab === "hjson" ? "" : "hidden"}>
-        <div class="relative" style={heightStyle}>
+      <div class={tab === "hjson" ? "flex-1 flex flex-col min-h-0" : "hidden"}>
+        <div class="relative flex-1 min-h-[26rem]"
+          style={resizedHeight !== null ? { minHeight: resizedHeight } : undefined}>
           <pre
             ref={preRef}
             aria-hidden="true"
-            class="pointer-events-none absolute inset-0 m-0 text-xs bg-[#1e1e1e] rounded p-2 overflow-hidden max-h-[60vh] lg:max-h-none lg:h-[var(--match-h,auto)] w-full font-mono whitespace-pre-wrap break-words border border-transparent"
+            class="pointer-events-none absolute inset-0 m-0 text-xs bg-[#1e1e1e] rounded p-2 overflow-hidden h-full w-full font-mono whitespace-pre-wrap break-words border border-transparent"
             style={preSize !== null ? { height: `${preSize.height}px`, width: `${preSize.width}px` } : undefined}
           >
             <JsonHighlight text={draftText} />
           </pre>
           <textarea
             ref={textareaRef}
-            class="relative text-xs bg-transparent border border-gray-200 rounded p-2 overflow-auto max-h-[60vh] lg:max-h-none lg:h-[var(--match-h,auto)] w-full font-mono whitespace-pre-wrap break-words text-transparent caret-gray-100"
-            rows={20}
+            class="relative text-xs bg-transparent border border-gray-200 rounded p-2 overflow-auto h-full w-full font-mono whitespace-pre-wrap break-words text-transparent caret-gray-100"
             value={draftText}
             onFocus={() => setFocused(true)}
             onBlur={() => { flushPending(); setFocused(false); }}

@@ -160,7 +160,8 @@ export function OutputSection(props: {
   onChange: (n: OutputNode | null) => void;
 }) {
   return (
-    <section class="bg-bg-panel border border-gray-300 rounded p-3">
+    // 左列の最後の枠。余った高さを吸って右の出力欄と下端を揃えるため h-full。
+    <section class="bg-bg-panel border border-gray-300 rounded p-3 h-full">
       <div class="flex items-center gap-2 mb-2">
         <h2 class="font-bold text-purple-900">出力</h2>
         {props.node === null ? (
