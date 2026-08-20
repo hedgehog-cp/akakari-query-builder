@@ -24,11 +24,18 @@ Node.js 22 以降。
 ```shell
 npm install
 npm run dev     # 開発サーバ
-npm test        # 純関数の単体テスト (vitest)
-npm run build   # dist/ へ出力 (ビルド成果物, コミットしない)
+npm test        # 単体テスト (vitest, Node環境。UIコンポーネントは対象外)
+npm run build   # 型検査(tsc)のうえ dist/ へ出力 (ビルド成果物, コミットしない)
+```
+
+同梱データと取得先の面倒を見るコマンド。
+
+```shell
+npm run gen:master             # マスタデータの再生成 (.repositories/api_start2 が要る)
+npm run update:schema-fallback # 同梱する列カタログの取り直し
+npm run check:schema-urls      # 列カタログ取得先の死活確認 (CIでも実行)
 ```
 
 ---
 
-詳細は`DESIGN.md`を参照してください。
 ライセンスはMITです（`LICENSE`）。同梱データの出典は`NOTICE.md`に挙げています。
