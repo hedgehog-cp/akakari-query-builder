@@ -263,17 +263,24 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
           if (f !== undefined) accept(f);
         }}
       >
+        <SectionToggle open={open} onToggle={() => setOpen(!open)}>
+          <h2 class="font-bold text-purple-900">プレビュー</h2>
+        </SectionToggle>
+
+        {/* ファイル名・件数もボタンも開閉の内側に置く。畳んだときは見出しの1行だけを残す。 */}
+        <div class={open ? "mt-2 grid gap-2" : "collapsed"}>
+        {(file !== null || done !== null) && (
+          <div class="flex flex-wrap items-baseline gap-4 text-xs text-gray-500">
+            {file !== null && <span>{file.name}</span>}
+            {done !== null && (
+              <span>
+                合致 {done.matched.toLocaleString()} 行 / 全 {done.scanned.toLocaleString()} 行
+              </span>
+            )}
+          </div>
+        )}
+
         <div class="flex flex-wrap items-center gap-2">
-          <SectionToggle open={open} onToggle={() => setOpen(!open)}>
-            <h2 class="font-bold text-purple-900">プレビュー</h2>
-          </SectionToggle>
-          <button type="button" class="border border-gray-300 rounded px-2 py-0.5 hover:bg-emp-4 disabled:opacity-40"
-            disabled={done === null}
-            onClick={() => {
-              if (done === null) return;
-              const sel = selectedTable();
-              copy(sel === null ? csvToTsv(done.csv) : sel.map(formatTsvRow).join("\r\n"));
-            }}>TSVでコピー{suffix}</button>
           <button type="button" class="border border-gray-300 rounded px-2 py-0.5 hover:bg-emp-4 disabled:opacity-40"
             disabled={done === null}
             onClick={() => {
@@ -281,6 +288,13 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
               const sel = selectedTable();
               copy(sel === null ? stripBom(done.csv) : sel.map(formatCsvRow).join("\r\n"));
             }}>CSVでコピー{suffix}</button>
+          <button type="button" class="border border-gray-300 rounded px-2 py-0.5 hover:bg-emp-4 disabled:opacity-40"
+            disabled={done === null}
+            onClick={() => {
+              if (done === null) return;
+              const sel = selectedTable();
+              copy(sel === null ? csvToTsv(done.csv) : sel.map(formatTsvRow).join("\r\n"));
+            }}>TSVでコピー{suffix}</button>
           <button type="button" class="border border-gray-300 rounded px-2 py-0.5 hover:bg-emp-4 disabled:opacity-40"
             disabled={done === null}
             onClick={() => {
@@ -300,21 +314,13 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
             <button type="button" class="border border-emp-1 rounded px-2 py-0.5 hover:bg-emp-4"
               onClick={() => run(file)}>再実行</button>
           )}
-          {done !== null && (
-            <span class="bg-gray-800 text-white px-2 py-0.5 text-xs font-bold rounded">
-              {done.matched.toLocaleString()} 件
-            </span>
-          )}
-          {file !== null && <span class="text-xs text-gray-500">{file.name}</span>}
         </div>
-
-        <div class={open ? "mt-2" : "collapsed"}>
         {state.kind === "running" && (
-          <p class="text-xs">走査 {state.scanned.toLocaleString()} 行 / 一致 {state.matched.toLocaleString()} 行…</p>
+          <p class="text-xs">合致 {state.matched.toLocaleString()} 行 / 走査 {state.scanned.toLocaleString()} 行…</p>
         )}
 
         {state.kind === "mismatch" && (
-          <div class="border border-red-400 bg-red-50 rounded p-2 text-xs mb-2">
+          <div class="border border-red-400 bg-red-50 rounded p-2 text-xs">
             <p class="text-red-700 font-bold">
               CSV のヘッダが選択中の戦闘種別と一致しません。実行を中止しました。
             </p>
@@ -327,7 +333,7 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
           </div>
         )}
 
-        {state.kind === "error" && <p class="text-xs text-red-600 mb-2">{state.message}</p>}
+        {state.kind === "error" && <p class="text-xs text-red-600">{state.message}</p>}
 
         {done === null ? (
           <>
@@ -337,9 +343,8 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
             >
               {expectedFileName}をドラッグ&ドロップしてプレビュー
             </div>
-            <p class="text-xs text-gray-500 mt-1">
-              クリックでファイルを選ぶこともできます。CSV は44万行を超えることがあるため、
-              読み込んだ時点でだけ実行し、条件を編集しても自動では再実行しません。
+            <p class="text-xs text-gray-500">
+              条件を編集した場合は再実行をクリックしてください。
             </p>
           </>
         ) : (
@@ -350,22 +355,22 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
                 (CSV の列だけでは評価できません)
               </p>
             )}
-            <p class="text-xs text-gray-500">
-              一致 {done.matched.toLocaleString()} 行 / 走査 {done.scanned.toLocaleString()} 行。
-              {done.truncated
-                ? `表には先頭 ${done.rows.length.toLocaleString()} 行のみ表示しています(コピー・ダウンロードは全件です)。`
-                : ""}
-              {expectedFileName}を新たにドロップすると差し替わります。
-            </p>
             {table}
-            <div class="flex items-center justify-between gap-2 text-xs text-gray-600">
-              <span>
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600">
+              <span class="whitespace-nowrap">
                 {done.rows.length === 0
                   ? "0–0"
                   : `${(start + 1).toLocaleString()}–${(start + pageRows.length).toLocaleString()}`}
                 {" / 全"}{done.matched.toLocaleString()}件
                 {selected.size > 0 && ` (選択 ${selected.size} 行)`}
               </span>
+              {/* 注記は伸ばして、ページ送りを右端へ押しやる */}
+              <p class="flex-1 text-gray-500">
+                {done.truncated
+                  ? `表には先頭 ${done.rows.length.toLocaleString()} 行のみ表示しています。`
+                  : ""}
+                {expectedFileName}を新たにドロップすると差し替わります。
+              </p>
               <div class="flex items-center gap-1">
                 <button type="button" class="border border-gray-300 rounded px-2 py-0.5 hover:bg-emp-4 disabled:opacity-40"
                   disabled={page === 0}
