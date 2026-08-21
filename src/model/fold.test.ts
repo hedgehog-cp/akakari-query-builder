@@ -71,8 +71,16 @@ describe("foldOutput", () => {
       kind: "group",
       op: "AND",
       children: [
-        { kind: "column", column: "攻撃艦.装備3.名前", cond: { kind: "contains", values: ["51cm連装砲"] } },
-        { kind: "column", column: "攻撃艦.装備3.改修", cond: { kind: "cmp", op: "以上", value: 7 } },
+        {
+          kind: "column",
+          column: "攻撃艦.装備3.名前",
+          cond: { kind: "contains", values: ["51cm連装砲"] },
+        },
+        {
+          kind: "column",
+          column: "攻撃艦.装備3.改修",
+          cond: { kind: "cmp", op: "以上", value: 7 },
+        },
       ],
     };
     const broken: OutputNode = { kind: "group", op: "OR", children };
@@ -86,8 +94,16 @@ describe("foldOutput", () => {
       kind: "group",
       op: "AND",
       children: [
-        { kind: "column", column: "防御艦.装備2.名前", cond: { kind: "contains", values: ["46cm三連装砲"] } },
-        { kind: "column", column: "防御艦.装備2.改修", cond: { kind: "cmp", op: "以上", value: 7 } },
+        {
+          kind: "column",
+          column: "防御艦.装備2.名前",
+          cond: { kind: "contains", values: ["46cm三連装砲"] },
+        },
+        {
+          kind: "column",
+          column: "防御艦.装備2.改修",
+          cond: { kind: "cmp", op: "以上", value: 7 },
+        },
       ],
     };
     const broken: OutputNode = { kind: "group", op: "OR", children };
@@ -118,7 +134,9 @@ describe("foldOutput (displayItem)", () => {
   for (const q of quantities) {
     it(`fold(expand(x)) === x : ${JSON.stringify(q)}`, () => {
       const x: OutputNode = {
-        kind: "displayItem", quantity: q, cond: { kind: "contains", values: ["46cm三連装砲"] },
+        kind: "displayItem",
+        quantity: q,
+        cond: { kind: "contains", values: ["46cm三連装砲"] },
       };
       expect(foldOutput(expandOutput(x))).toEqual(x);
     });
@@ -127,7 +145,8 @@ describe("foldOutput (displayItem)", () => {
   it("手書きのOR/ANDグループも表示装備条件に畳める", () => {
     const cond: ValueCond = { kind: "eq", values: ["電探"] };
     const group: OutputNode = {
-      kind: "group", op: "OR",
+      kind: "group",
+      op: "OR",
       children: [1, 2, 3].map((k) => ({ kind: "column", column: `表示装備${k}`, cond })),
     };
     expect(foldOutput(group)).toEqual({ kind: "displayItem", quantity: { kind: "any" }, cond });

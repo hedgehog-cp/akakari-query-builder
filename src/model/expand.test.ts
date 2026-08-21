@@ -31,7 +31,11 @@ describe("combinations", () => {
   });
 
   it("1始まりの昇順で返す", () => {
-    expect(combinations(3, 2)).toEqual([[1, 2], [1, 3], [2, 3]]);
+    expect(combinations(3, 2)).toEqual([
+      [1, 2],
+      [1, 3],
+      [2, 3],
+    ]);
   });
 });
 
@@ -57,7 +61,9 @@ describe("expandOutput", () => {
 
   it("どれも満たさない は NOT で包まれた OR になる", () => {
     const r = expandOutput(slot({ kind: "none" })) as {
-      kind: string; op: string; children: { op: string; children: unknown[] }[];
+      kind: string;
+      op: string;
+      children: { op: string; children: unknown[] }[];
     };
     expect(r.op).toBe("NOT");
     expect(r.children).toHaveLength(1);
@@ -67,7 +73,8 @@ describe("expandOutput", () => {
 
   it("N個以上 は C(6,N) 分岐のOR、各枝はN個のAND", () => {
     const r = expandOutput(slot({ kind: "atLeast", n: 3 })) as {
-      op: string; children: { op: string; children: unknown[] }[];
+      op: string;
+      children: { op: string; children: unknown[] }[];
     };
     expect(r.op).toBe("OR");
     expect(r.children).toHaveLength(20);
@@ -90,7 +97,11 @@ describe("expandOutput", () => {
     expect(r.children).toHaveLength(6);
     expect(r.children[0].op).toBe("AND");
     expect(r.children[0].children).toEqual([
-      { kind: "column", column: "攻撃艦.装備1.名前", cond: { kind: "contains", values: ["46cm三連装砲"] } },
+      {
+        kind: "column",
+        column: "攻撃艦.装備1.名前",
+        cond: { kind: "contains", values: ["46cm三連装砲"] },
+      },
       { kind: "column", column: "攻撃艦.装備1.改修", cond: { kind: "cmp", op: "以上", value: 7 } },
     ]);
   });
@@ -123,15 +134,20 @@ describe("displayItemColumn", () => {
 
 describe("expandOutput (displayItem)", () => {
   const node = (quantity: DisplayItemQuantity): OutputNode => ({
-    kind: "displayItem", quantity, cond: { kind: "contains", values: ["46cm三連装砲"] },
+    kind: "displayItem",
+    quantity,
+    cond: { kind: "contains", values: ["46cm三連装砲"] },
   });
 
   it("いずれか は3分岐のORになる", () => {
     const r = expandOutput(node({ kind: "any" }));
     expect(r).toEqual({
-      kind: "group", op: "OR",
+      kind: "group",
+      op: "OR",
       children: [1, 2, 3].map((k) => ({
-        kind: "column", column: `表示装備${k}`, cond: { kind: "contains", values: ["46cm三連装砲"] },
+        kind: "column",
+        column: `表示装備${k}`,
+        cond: { kind: "contains", values: ["46cm三連装砲"] },
       })),
     });
   });

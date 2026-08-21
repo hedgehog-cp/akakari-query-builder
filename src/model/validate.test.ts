@@ -7,7 +7,11 @@ const COLUMNS: Column[] = [
   { name: "ランク", type: "string", enum: ["勝利S", "敗北E"] },
   { name: "クリティカル", type: "integer", minimum: 0, maximum: 2 },
   { name: "マス", type: "string", pattern: "^マップ:\\d+-\\d+ セル:\\d+$" },
-  { name: "自索敵", type: "string", description: "この形式では常に空欄. 書き出し側が値を出力しない." },
+  {
+    name: "自索敵",
+    type: "string",
+    description: "この形式では常に空欄. 書き出し側が値を出力しない.",
+  },
   { name: "攻撃艦.名前", type: "string" },
   { name: "ダメージ", type: "integer", minimum: 0 },
 ];
@@ -20,63 +24,124 @@ const codes = (q: Query) => validateQuery(q, COLUMNS).map((w) => w.code);
 
 describe("validateQuery", () => {
   it("enum に無い値を警告する", () => {
-    expect(codes(withOutput({
-      kind: "column", column: "ランク", cond: { kind: "eq", values: ["大勝利"] },
-    }))).toContain("enum");
+    expect(
+      codes(
+        withOutput({
+          kind: "column",
+          column: "ランク",
+          cond: { kind: "eq", values: ["大勝利"] },
+        }),
+      ),
+    ).toContain("enum");
   });
 
   it("enum にある値は警告しない", () => {
-    expect(codes(withOutput({
-      kind: "column", column: "ランク", cond: { kind: "eq", values: ["勝利S"] },
-    }))).not.toContain("enum");
+    expect(
+      codes(
+        withOutput({
+          kind: "column",
+          column: "ランク",
+          cond: { kind: "eq", values: ["勝利S"] },
+        }),
+      ),
+    ).not.toContain("enum");
   });
 
   it("整数列に非整数を警告する", () => {
-    expect(codes(withOutput({
-      kind: "column", column: "クリティカル", cond: { kind: "eq", values: [1.5] },
-    }))).toContain("integer");
+    expect(
+      codes(
+        withOutput({
+          kind: "column",
+          column: "クリティカル",
+          cond: { kind: "eq", values: [1.5] },
+        }),
+      ),
+    ).toContain("integer");
   });
 
   it("pattern に合わない値を警告する", () => {
-    expect(codes(withOutput({
-      kind: "column", column: "マス", cond: { kind: "eq", values: ["7-1"] },
-    }))).toContain("pattern");
+    expect(
+      codes(
+        withOutput({
+          kind: "column",
+          column: "マス",
+          cond: { kind: "eq", values: ["7-1"] },
+        }),
+      ),
+    ).toContain("pattern");
   });
 
   it("常に空欄の列への数値比較を警告する", () => {
-    expect(codes(withOutput({
-      kind: "column", column: "自索敵", cond: { kind: "cmp", op: "以下", value: 0 },
-    }))).toContain("empty-numeric");
+    expect(
+      codes(
+        withOutput({
+          kind: "column",
+          column: "自索敵",
+          cond: { kind: "cmp", op: "以下", value: 0 },
+        }),
+      ),
+    ).toContain("empty-numeric");
   });
 
   it("正規表現に完全一致の注意を出す", () => {
-    expect(codes(withOutput({
-      kind: "column", column: "攻撃艦.名前", cond: { kind: "regex", values: ["島風"] },
-    }))).toContain("regex-full-match");
+    expect(
+      codes(
+        withOutput({
+          kind: "column",
+          column: "攻撃艦.名前",
+          cond: { kind: "regex", values: ["島風"] },
+        }),
+      ),
+    ).toContain("regex-full-match");
   });
 
   it("選択中の戦闘種別に無い列を警告する", () => {
-    expect(codes(withOutput({
-      kind: "column", column: "巡目", cond: { kind: "eq", values: [1] },
-    }))).toContain("unknown-column");
+    expect(
+      codes(
+        withOutput({
+          kind: "column",
+          column: "巡目",
+          cond: { kind: "eq", values: [1] },
+        }),
+      ),
+    ).toContain("unknown-column");
   });
 
   it("マスタに無い艦名を警告する", () => {
-    expect(codes(withOutput({
-      kind: "column", column: "攻撃艦.名前", cond: { kind: "eq", values: ["存在しない艦"] },
-    }))).toContain("unknown-name");
+    expect(
+      codes(
+        withOutput({
+          kind: "column",
+          column: "攻撃艦.名前",
+          cond: { kind: "eq", values: ["存在しない艦"] },
+        }),
+      ),
+    ).toContain("unknown-name");
   });
 
   it("マスタにある艦名は警告しない", () => {
-    expect(codes(withOutput({
-      kind: "column", column: "攻撃艦.名前", cond: { kind: "eq", values: ["島風"] },
-    }))).not.toContain("unknown-name");
+    expect(
+      codes(
+        withOutput({
+          kind: "column",
+          column: "攻撃艦.名前",
+          cond: { kind: "eq", values: ["島風"] },
+        }),
+      ),
+    ).not.toContain("unknown-name");
   });
 
   it("問題のないクエリでは警告が出ない", () => {
-    expect(validateQuery(withOutput({
-      kind: "column", column: "ダメージ", cond: { kind: "cmp", op: "以上", value: 10 },
-    }), COLUMNS)).toEqual([]);
+    expect(
+      validateQuery(
+        withOutput({
+          kind: "column",
+          column: "ダメージ",
+          cond: { kind: "cmp", op: "以上", value: 10 },
+        }),
+        COLUMNS,
+      ),
+    ).toEqual([]);
   });
 });
 
@@ -86,35 +151,61 @@ describe("空グループ・空条件の検出", () => {
   });
 
   it("値が空の一致条件を警告する", () => {
-    expect(codes(withOutput({
-      kind: "column", column: "ランク", cond: { kind: "eq", values: [] },
-    }))).toContain("empty-value");
+    expect(
+      codes(
+        withOutput({
+          kind: "column",
+          column: "ランク",
+          cond: { kind: "eq", values: [] },
+        }),
+      ),
+    ).toContain("empty-value");
   });
 
   it("値が空文字列だけの含む条件を警告する", () => {
-    expect(codes(withOutput({
-      kind: "column", column: "攻撃艦.名前", cond: { kind: "contains", values: [""] },
-    }))).toContain("empty-value");
+    expect(
+      codes(
+        withOutput({
+          kind: "column",
+          column: "攻撃艦.名前",
+          cond: { kind: "contains", values: [""] },
+        }),
+      ),
+    ).toContain("empty-value");
   });
 
   it("入れ子のグループも検査する", () => {
     const q = withOutput({
-      kind: "group", op: "AND",
+      kind: "group",
+      op: "AND",
       children: [{ kind: "group", op: "OR", children: [] }],
     });
     expect(codes(q)).toContain("empty-group");
   });
 
   it("属性が空の装備スロット条件を警告する", () => {
-    expect(codes(withOutput({
-      kind: "slot", side: "攻撃艦", quantity: { kind: "any" }, attrs: [],
-    }))).toContain("empty-group");
+    expect(
+      codes(
+        withOutput({
+          kind: "slot",
+          side: "攻撃艦",
+          quantity: { kind: "any" },
+          attrs: [],
+        }),
+      ),
+    ).toContain("empty-group");
   });
 
   it("値が埋まっていれば警告しない", () => {
-    expect(codes(withOutput({
-      kind: "column", column: "ランク", cond: { kind: "eq", values: ["勝利S"] },
-    }))).not.toContain("empty-value");
+    expect(
+      codes(
+        withOutput({
+          kind: "column",
+          column: "ランク",
+          cond: { kind: "eq", values: ["勝利S"] },
+        }),
+      ),
+    ).not.toContain("empty-value");
   });
 
   it("攻撃艦装備の空グループも警告する", () => {
@@ -134,8 +225,14 @@ describe("空グループ・空条件の検出", () => {
   });
 
   it("値が空の表示装備条件を警告する", () => {
-    expect(codes(withOutput({
-      kind: "displayItem", quantity: { kind: "any" }, cond: { kind: "contains", values: [""] },
-    }))).toContain("empty-value");
+    expect(
+      codes(
+        withOutput({
+          kind: "displayItem",
+          quantity: { kind: "any" },
+          cond: { kind: "contains", values: [""] },
+        }),
+      ),
+    ).toContain("empty-value");
   });
 });

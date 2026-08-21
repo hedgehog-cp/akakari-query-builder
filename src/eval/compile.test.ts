@@ -20,13 +20,17 @@ describe("compileQuery", () => {
   });
 
   it("文字列の一致", () => {
-    const p = pred(withOutput({ kind: "column", column: "ランク", cond: { kind: "eq", values: ["勝利S"] } }));
+    const p = pred(
+      withOutput({ kind: "column", column: "ランク", cond: { kind: "eq", values: ["勝利S"] } }),
+    );
     expect(p(row("1", "", "勝利S", "", "", "", ""))).toBe(true);
     expect(p(row("1", "", "敗北E", "", "", "", ""))).toBe(false);
   });
 
   it("数値の一致は誤差閾値 0.0001 で判定する", () => {
-    const p = pred(withOutput({ kind: "column", column: "ダメージ", cond: { kind: "eq", values: [10] } }));
+    const p = pred(
+      withOutput({ kind: "column", column: "ダメージ", cond: { kind: "eq", values: [10] } }),
+    );
     expect(THRESHOLD).toBe(0.0001);
     expect(p(row("1", "", "", "", "10", "", ""))).toBe(true);
     expect(p(row("1", "", "", "", "10.00001", "", ""))).toBe(true);
@@ -34,55 +38,81 @@ describe("compileQuery", () => {
   });
 
   it("空文字列は数値比較で 0 として扱われる", () => {
-    const p = pred(withOutput({ kind: "column", column: "自索敵", cond: { kind: "cmp", op: "以下", value: 0 } }));
+    const p = pred(
+      withOutput({ kind: "column", column: "自索敵", cond: { kind: "cmp", op: "以下", value: 0 } }),
+    );
     expect(p(row("1", "", "", "", "", "", ""))).toBe(true);
   });
 
   it("数値でパースできない文字列は数値比較で偽", () => {
-    const p = pred(withOutput({ kind: "column", column: "ランク", cond: { kind: "cmp", op: "以上", value: 0 } }));
+    const p = pred(
+      withOutput({ kind: "column", column: "ランク", cond: { kind: "cmp", op: "以上", value: 0 } }),
+    );
     expect(p(row("1", "", "勝利S", "", "", "", ""))).toBe(false);
   });
 
   it("正規表現は完全一致", () => {
-    const full = pred(withOutput({
-      kind: "column", column: "攻撃艦.名前", cond: { kind: "regex", values: ["島風"] },
-    }));
+    const full = pred(
+      withOutput({
+        kind: "column",
+        column: "攻撃艦.名前",
+        cond: { kind: "regex", values: ["島風"] },
+      }),
+    );
     expect(full(row("1", "", "", "", "", "島風", ""))).toBe(true);
     expect(full(row("1", "", "", "", "", "島風改", ""))).toBe(false);
 
-    const partial = pred(withOutput({
-      kind: "column", column: "攻撃艦.名前", cond: { kind: "regex", values: [".*島風.*"] },
-    }));
+    const partial = pred(
+      withOutput({
+        kind: "column",
+        column: "攻撃艦.名前",
+        cond: { kind: "regex", values: [".*島風.*"] },
+      }),
+    );
     expect(partial(row("1", "", "", "", "", "島風改", ""))).toBe(true);
   });
 
   it("含む は部分一致", () => {
-    const p = pred(withOutput({
-      kind: "column", column: "攻撃艦.名前", cond: { kind: "contains", values: ["島風"] },
-    }));
+    const p = pred(
+      withOutput({
+        kind: "column",
+        column: "攻撃艦.名前",
+        cond: { kind: "contains", values: ["島風"] },
+      }),
+    );
     expect(p(row("1", "", "", "", "", "島風改", ""))).toBe(true);
   });
 
   it("AND / OR / NOT", () => {
-    const p = pred(withOutput({
-      kind: "group", op: "AND",
-      children: [
-        { kind: "column", column: "クリティカル", cond: { kind: "eq", values: [2] } },
-        {
-          kind: "group", op: "NOT",
-          children: [{ kind: "column", column: "ランク", cond: { kind: "eq", values: ["敗北E"] } }],
-        },
-      ],
-    }));
+    const p = pred(
+      withOutput({
+        kind: "group",
+        op: "AND",
+        children: [
+          { kind: "column", column: "クリティカル", cond: { kind: "eq", values: [2] } },
+          {
+            kind: "group",
+            op: "NOT",
+            children: [
+              { kind: "column", column: "ランク", cond: { kind: "eq", values: ["敗北E"] } },
+            ],
+          },
+        ],
+      }),
+    );
     expect(p(row("1", "", "勝利S", "2", "", "", ""))).toBe(true);
     expect(p(row("1", "", "敗北E", "2", "", "", ""))).toBe(false);
     expect(p(row("1", "", "勝利S", "1", "", "", ""))).toBe(false);
   });
 
   it("複数値の一致はORになる", () => {
-    const p = pred(withOutput({
-      kind: "column", column: "クリティカル", cond: { kind: "eq", values: [1, 2] },
-    }));
+    const p = pred(
+      withOutput({
+        kind: "column",
+        column: "クリティカル",
+        cond: { kind: "eq", values: [1, 2] },
+      }),
+    );
     expect(p(row("1", "", "", "1", "", "", ""))).toBe(true);
     expect(p(row("1", "", "", "0", "", "", ""))).toBe(false);
   });
@@ -102,9 +132,14 @@ describe("compileQuery", () => {
   });
 
   it("ヘッダに無い列は missingColumns に載り、その条件は常に偽", () => {
-    const c = compileQuery(withOutput({
-      kind: "column", column: "巡目", cond: { kind: "eq", values: [1] },
-    }), HEADER);
+    const c = compileQuery(
+      withOutput({
+        kind: "column",
+        column: "巡目",
+        cond: { kind: "eq", values: [1] },
+      }),
+      HEADER,
+    );
     expect(c.missingColumns).toContain("巡目");
     expect(c.predicate(row("1", "", "", "", "", "", ""))).toBe(false);
   });
@@ -142,7 +177,9 @@ describe("compileQuery", () => {
     const q: Query = {
       ...emptyQuery("akakari-hougeki"),
       output: {
-        kind: "slot", side: "攻撃艦", quantity: { kind: "any" },
+        kind: "slot",
+        side: "攻撃艦",
+        quantity: { kind: "any" },
         attrs: [{ attr: "名前", cond: { kind: "contains", values: ["46cm"] } }],
       },
     };
@@ -155,7 +192,9 @@ describe("compileQuery", () => {
   it("表示装備条件は展開されて評価される", () => {
     const header = [...HEADER, "表示装備1", "表示装備2", "表示装備3"];
     const q: Query = withOutput({
-      kind: "displayItem", quantity: { kind: "any" }, cond: { kind: "contains", values: ["46cm"] },
+      kind: "displayItem",
+      quantity: { kind: "any" },
+      cond: { kind: "contains", values: ["46cm"] },
     });
     const p = compileQuery(q, header).predicate;
     const base = ["1", "", "", "", "", "", ""];
@@ -167,7 +206,8 @@ describe("compileQuery", () => {
 describe("hjson と評価器の整合", () => {
   it("同じモデルから出た条件で判定が食い違わない", () => {
     const q: Query = withOutput({
-      kind: "group", op: "AND",
+      kind: "group",
+      op: "AND",
       children: [
         { kind: "column", column: "ダメージ", cond: { kind: "cmp", op: "以上", value: 10 } },
         { kind: "column", column: "ダメージ", cond: { kind: "cmp", op: "以下", value: 20 } },

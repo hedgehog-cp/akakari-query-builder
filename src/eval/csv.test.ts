@@ -18,15 +18,24 @@ describe("stripBom", () => {
 
 describe("CsvParser", () => {
   it("CRLF区切りの行を読む", () => {
-    expect(parseAll(["a,b\r\nc,d\r\n"])).toEqual([["a", "b"], ["c", "d"]]);
+    expect(parseAll(["a,b\r\nc,d\r\n"])).toEqual([
+      ["a", "b"],
+      ["c", "d"],
+    ]);
   });
 
   it("LFだけでも読む", () => {
-    expect(parseAll(["a,b\nc,d\n"])).toEqual([["a", "b"], ["c", "d"]]);
+    expect(parseAll(["a,b\nc,d\n"])).toEqual([
+      ["a", "b"],
+      ["c", "d"],
+    ]);
   });
 
   it("最終行に改行が無くても読む", () => {
-    expect(parseAll(["a,b\r\nc,d"])).toEqual([["a", "b"], ["c", "d"]]);
+    expect(parseAll(["a,b\r\nc,d"])).toEqual([
+      ["a", "b"],
+      ["c", "d"],
+    ]);
   });
 
   it("引用値の中のカンマを列区切りにしない", () => {
@@ -54,7 +63,10 @@ describe("CsvParser", () => {
   });
 
   it("チャンク境界がCRとLFの間に落ちても壊れない", () => {
-    expect(parseAll(["a,b\r", "\nc,d\r\n"])).toEqual([["a", "b"], ["c", "d"]]);
+    expect(parseAll(["a,b\r", "\nc,d\r\n"])).toEqual([
+      ["a", "b"],
+      ["c", "d"],
+    ]);
   });
 
   it("BOM付き先頭行を読む", () => {
@@ -80,7 +92,7 @@ describe("実データの形", () => {
   it("敵艦隊にカンマを含む引用値がある行を正しく分解する", () => {
     // 赤仮砲撃戦.csv の 敵艦隊 に実在する値
     const line =
-      '1,2024/07/20 12:34:56,ブルネイ泊地沖,マップ:7-1 セル:4,出撃,勝利S,' +
+      "1,2024/07/20 12:34:56,ブルネイ泊地沖,マップ:7-1 セル:4,出撃,勝利S," +
       '"深海5,500t級軽巡洋艦",120';
     const rows = parseAll([line + "\r\n"]);
     expect(rows[0]).toHaveLength(8);

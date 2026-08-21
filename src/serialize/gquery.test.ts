@@ -13,8 +13,7 @@ const COLUMNS: Column[] = [
   { name: "自索敵", type: "string", description: "この形式では常に空欄." },
 ];
 
-const run = (q: Query, includeDate = false) =>
-  toGoogleQuery(q, COLUMNS, { includeDate });
+const run = (q: Query, includeDate = false) => toGoogleQuery(q, COLUMNS, { includeDate });
 
 describe("toGoogleQuery", () => {
   it("条件が無ければ空文字列", () => {
@@ -56,12 +55,20 @@ describe("toGoogleQuery", () => {
   it("含む は contains、正規表現は matches", () => {
     const c: Query = {
       ...emptyQuery("akakari-hougeki"),
-      output: { kind: "column", column: "攻撃艦.名前", cond: { kind: "contains", values: ["島風"] } },
+      output: {
+        kind: "column",
+        column: "攻撃艦.名前",
+        cond: { kind: "contains", values: ["島風"] },
+      },
     };
     expect(run(c).query).toBe("where Col6 contains '島風'");
     const r: Query = {
       ...emptyQuery("akakari-hougeki"),
-      output: { kind: "column", column: "攻撃艦.名前", cond: { kind: "regex", values: [".*島風.*"] } },
+      output: {
+        kind: "column",
+        column: "攻撃艦.名前",
+        cond: { kind: "regex", values: [".*島風.*"] },
+      },
     };
     expect(run(r).query).toBe("where Col6 matches '.*島風.*'");
   });
@@ -70,10 +77,15 @@ describe("toGoogleQuery", () => {
     const q: Query = {
       ...emptyQuery("akakari-hougeki"),
       output: {
-        kind: "group", op: "AND",
+        kind: "group",
+        op: "AND",
         children: [
           { kind: "column", column: "ダメージ", cond: { kind: "cmp", op: "以上", value: 10 } },
-          { kind: "column", column: "ダメージ", cond: { kind: "cmp", op: "より小さい", value: 20 } },
+          {
+            kind: "column",
+            column: "ダメージ",
+            cond: { kind: "cmp", op: "より小さい", value: 20 },
+          },
         ],
       },
     };
@@ -84,12 +96,16 @@ describe("toGoogleQuery", () => {
     const q: Query = {
       ...emptyQuery("akakari-hougeki"),
       output: {
-        kind: "group", op: "AND",
+        kind: "group",
+        op: "AND",
         children: [
           { kind: "column", column: "クリティカル", cond: { kind: "eq", values: [2] } },
           {
-            kind: "group", op: "NOT",
-            children: [{ kind: "column", column: "ランク", cond: { kind: "eq", values: ["敗北E"] } }],
+            kind: "group",
+            op: "NOT",
+            children: [
+              { kind: "column", column: "ランク", cond: { kind: "eq", values: ["敗北E"] } },
+            ],
           },
         ],
       },
@@ -105,7 +121,9 @@ describe("toGoogleQuery", () => {
     const q: Query = {
       ...emptyQuery("akakari-hougeki"),
       output: {
-        kind: "slot", side: "攻撃艦", quantity: { kind: "any" },
+        kind: "slot",
+        side: "攻撃艦",
+        quantity: { kind: "any" },
         attrs: [{ attr: "名前", cond: { kind: "contains", values: ["46cm"] } }],
       },
     };
@@ -121,7 +139,11 @@ describe("toGoogleQuery", () => {
     ];
     const q: Query = {
       ...emptyQuery("akakari-hougeki"),
-      output: { kind: "displayItem", quantity: { kind: "any" }, cond: { kind: "contains", values: ["46cm"] } },
+      output: {
+        kind: "displayItem",
+        quantity: { kind: "any" },
+        cond: { kind: "contains", values: ["46cm"] },
+      },
     };
     const r = toGoogleQuery(q, cols, { includeDate: false });
     expect(r.query).toContain("contains '46cm'");

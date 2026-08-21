@@ -5,4 +5,9 @@ import { ErrorBoundary } from "./ui/error-boundary";
 
 const root = document.getElementById("root");
 if (root === null) throw new Error("#root が見つかりません");
-render(<ErrorBoundary><App /></ErrorBoundary>, root);
+render(
+  <ErrorBoundary>
+    <App />
+  </ErrorBoundary>,
+  root,
+);

@@ -1,0 +1,5 @@
+# 生成物。フォーマッタと生成側で書き方が食い違うと直し合いになる。
+dist/
+src/master/master.json
+src/schema/fallback/
+package-lock.json

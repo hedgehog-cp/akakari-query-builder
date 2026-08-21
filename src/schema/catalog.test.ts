@@ -9,11 +9,15 @@ const SCHEMA = {
   fields: [
     { name: "No.", type: "integer", title: "行番号", constraints: { minimum: 1 } },
     {
-      name: "ランク", type: "string", title: "戦闘結果",
+      name: "ランク",
+      type: "string",
+      title: "戦闘結果",
       constraints: { enum: ["完全勝利!!S", "勝利S", "敗北E"] },
     },
     {
-      name: "クリティカル", type: "integer", title: "命中判定",
+      name: "クリティカル",
+      type: "integer",
+      title: "命中判定",
       categories: [
         { value: 0, label: "命中せず" },
         { value: 1, label: "命中" },
@@ -22,7 +26,9 @@ const SCHEMA = {
       constraints: { minimum: 0, maximum: 2 },
     },
     {
-      name: "マス", type: "string", title: "マップとセル",
+      name: "マス",
+      type: "string",
+      title: "マップとセル",
       constraints: { pattern: "^マップ:\\d+-\\d+ セル:\\d+$" },
       example: "マップ:7-1 セル:4",
     },
@@ -33,7 +39,11 @@ const SCHEMA = {
 describe("toCatalog", () => {
   it("列を並び順どおりに返す", () => {
     expect(toCatalog(SCHEMA).map((c) => c.name)).toEqual([
-      "No.", "ランク", "クリティカル", "マス", "自索敵",
+      "No.",
+      "ランク",
+      "クリティカル",
+      "マス",
+      "自索敵",
     ]);
   });
 

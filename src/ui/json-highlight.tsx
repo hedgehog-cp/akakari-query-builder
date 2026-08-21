@@ -22,10 +22,18 @@ function renderTokens(tokens: Tok[], keyPrefix: string): ComponentChildren {
     const cls = TOKEN_COLOR[t.type] ?? "text-gray-300";
     const content = t.content;
     if (typeof content === "string") {
-      return <span key={key} class={cls}>{content}</span>;
+      return (
+        <span key={key} class={cls}>
+          {content}
+        </span>
+      );
     }
     const children = Array.isArray(content) ? content : [content];
-    return <span key={key} class={cls}>{renderTokens(children, key)}</span>;
+    return (
+      <span key={key} class={cls}>
+        {renderTokens(children, key)}
+      </span>
+    );
   });
 }
 

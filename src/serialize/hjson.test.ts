@@ -22,10 +22,7 @@ describe("serializeQuery", () => {
     };
     expect(queryToJson(q)).toEqual({
       種別: "赤仮砲撃戦",
-      日時: [
-        { 開始: "20240720000000", 終了: "20250101000000" },
-        { 開始: "20250401000000" },
-      ],
+      日時: [{ 開始: "20240720000000", 終了: "20250101000000" }, { 開始: "20250401000000" }],
     });
   });
 
@@ -58,10 +55,7 @@ describe("serializeQuery", () => {
     };
     expect(queryToJson(q)).toMatchObject({
       出力: {
-        AND: [
-          { クリティカル: 1 },
-          { OR: [{ 巡目: 1 }, { 巡目: 2 }] },
-        ],
+        AND: [{ クリティカル: 1 }, { OR: [{ 巡目: 1 }, { 巡目: 2 }] }],
       },
     });
   });
@@ -146,7 +140,11 @@ describe("serializeQuery", () => {
   it("表示装備条件は展開されてから出力される", () => {
     const q: Query = {
       ...emptyQuery("akakari-hougeki"),
-      output: { kind: "displayItem", quantity: { kind: "any" }, cond: { kind: "contains", values: ["46cm三連装砲"] } },
+      output: {
+        kind: "displayItem",
+        quantity: { kind: "any" },
+        cond: { kind: "contains", values: ["46cm三連装砲"] },
+      },
     };
     const json = queryToJson(q) as { 出力: { OR: unknown[] } };
     expect(json.出力.OR).toHaveLength(3);

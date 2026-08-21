@@ -46,6 +46,6 @@ const master = {
 writeFileSync(out, JSON.stringify(master) + "\n", "utf-8");
 console.log(
   `装備 ${master.equips.length} / カテゴリ ${master.equipTypes.length} / ` +
-  `艦 ${master.ships.length} / 艦種 ${master.shipTypes.length} / ` +
-  `海域 ${master.maps.length} / 海域エリア ${master.mapAreas.length}`,
+    `艦 ${master.ships.length} / 艦種 ${master.shipTypes.length} / ` +
+    `海域 ${master.maps.length} / 海域エリア ${master.mapAreas.length}`,
 );
