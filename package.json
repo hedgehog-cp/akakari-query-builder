@@ -3,6 +3,23 @@
   "version": "1.0.0",
   "private": true,
   "description": "赤仮形式のCSVファイルのクエリを構築するGUI.",
+  "keywords": [
+    "kancolle",
+    "艦これ",
+    "赤仮",
+    "logbook",
+    "csv",
+    "query"
+  ],
+  "homepage": "https://hedgehog-cp.github.io/akakari-query-builder/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hedgehog-cp/akakari-query-builder.git"
+  },
+  "bugs": {
+    "url": "https://github.com/hedgehog-cp/akakari-query-builder/issues"
+  },
+  "author": "hedgehog-cp",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -15,14 +32,16 @@
     "check:schema-urls": "node tools/check-schema-urls.mjs"
   },
   "license": "MIT",
+  "engines": {
+    "node": ">=24"
+  },
   "devDependencies": {
     "@preact/preset-vite": "^2.10.6",
-    "@types/node": "^20.14.10",
+    "@types/node": "^24.9.2",
     "@types/prismjs": "^1.26.6",
     "@types/sortablejs": "^1.15.9",
     "autoprefixer": "^10.5.4",
     "postcss": "^8.5.26",
-    "preact": "^10.29.8",
     "prettier": "^3.9.6",
     "tailwindcss": "^3.4.19",
     "typescript": "^5.9.3",
@@ -30,6 +49,7 @@
     "vitest": "^4.1.11"
   },
   "dependencies": {
+    "preact": "^10.29.8",
     "prismjs": "^1.30.0",
     "sortablejs": "^1.15.7"
   }

@@ -23,7 +23,7 @@
 
 ## 開発
 
-Node.js 22 以降。
+Node.js 24 以降。
 
 ```shell
 npm install
