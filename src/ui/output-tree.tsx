@@ -21,7 +21,11 @@ function ColumnSelect(props: {
       onChange={(e) => props.onChange((e.target as HTMLSelectElement).value)}
     >
       {missing && <option value={props.value}>{props.value}(この戦闘種別に存在しません)</option>}
-      {props.columns.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
+      {props.columns.map((c) => (
+        <option key={c.name} value={c.name}>
+          {c.name}
+        </option>
+      ))}
     </select>
   );
 }
@@ -33,13 +37,19 @@ function newColumnNode(columns: Column[]): OutputNode {
 
 function newSlotNode(): OutputNode {
   return {
-    kind: "slot", side: "攻撃艦", quantity: { kind: "any" },
+    kind: "slot",
+    side: "攻撃艦",
+    quantity: { kind: "any" },
     attrs: [{ attr: "名前", cond: { kind: "contains", values: [""] } }],
   };
 }
 
 function newDisplayItemNode(): OutputNode {
-  return { kind: "displayItem", quantity: { kind: "any" }, cond: { kind: "contains", values: [""] } };
+  return {
+    kind: "displayItem",
+    quantity: { kind: "any" },
+    cond: { kind: "contains", values: [""] },
+  };
 }
 
 /**
@@ -85,12 +95,16 @@ function renderNode(
         {node.column === "海域" && node.cond.kind === "eq" ? (
           <MapAreaSelect
             value={String(node.cond.values[0] ?? "")}
-            onChange={(v) => onChange({ ...node, cond: { kind: "eq", values: v === "" ? [] : [v] } })}
+            onChange={(v) =>
+              onChange({ ...node, cond: { kind: "eq", values: v === "" ? [] : [v] } })
+            }
           />
         ) : node.column === "マス" && node.cond.kind === "eq" ? (
           <CellInput
             value={String(node.cond.values[0] ?? "")}
-            onChange={(v) => onChange({ ...node, cond: { kind: "eq", values: v === "" ? [] : [v] } })}
+            onChange={(v) =>
+              onChange({ ...node, cond: { kind: "eq", values: v === "" ? [] : [v] } })
+            }
           />
         ) : (
           <ValueCondEditor
@@ -101,7 +115,9 @@ function renderNode(
           />
         )}
         {onRemove !== undefined && (
-          <button type="button" class="text-gray-500 hover:text-red-600 px-1" onClick={onRemove}>✕</button>
+          <button type="button" class="text-gray-500 hover:text-red-600 px-1" onClick={onRemove}>
+            ✕
+          </button>
         )}
       </div>
     );
@@ -112,7 +128,14 @@ function renderNode(
   }
 
   if (node.kind === "displayItem") {
-    return <DisplayItemNodeEditor node={node} columns={columns} onChange={onChange} onRemove={onRemove} />;
+    return (
+      <DisplayItemNodeEditor
+        node={node}
+        columns={columns}
+        onChange={onChange}
+        onRemove={onRemove}
+      />
+    );
   }
 
   return (
@@ -126,11 +149,26 @@ function renderNode(
       }}
       onChildrenChange={(children) => onChange({ ...node, children })}
       addRuleActions={[
-        { label: "+ 条件", onClick: () => onChange({ ...node, children: [...node.children, newColumnNode(columns)] }) },
-        { label: "+ 装備条件", onClick: () => onChange({ ...node, children: [...node.children, newSlotNode()] }) },
-        { label: "+ 表示装備条件", onClick: () => onChange({ ...node, children: [...node.children, newDisplayItemNode()] }) },
+        {
+          label: "+ 条件",
+          onClick: () =>
+            onChange({ ...node, children: [...node.children, newColumnNode(columns)] }),
+        },
+        {
+          label: "+ 装備条件",
+          onClick: () => onChange({ ...node, children: [...node.children, newSlotNode()] }),
+        },
+        {
+          label: "+ 表示装備条件",
+          onClick: () => onChange({ ...node, children: [...node.children, newDisplayItemNode()] }),
+        },
       ]}
-      onAddGroup={() => onChange({ ...node, children: [...node.children, { kind: "group", op: "OR", children: [] }] })}
+      onAddGroup={() =>
+        onChange({
+          ...node,
+          children: [...node.children, { kind: "group", op: "OR", children: [] }],
+        })
+      }
       onRemove={onRemove}
       renderChild={(child, onChildChange, onChildRemove) =>
         renderNode(child, columns, depth + 1, onChildChange, onChildRemove)
@@ -144,6 +182,7 @@ function renderNode(
   );
 }
 
+/** 出力節の木を再帰的に描く。 */
 export function OutputTree(props: {
   node: OutputNode;
   columns: Column[];
@@ -151,9 +190,12 @@ export function OutputTree(props: {
   onRemove?: () => void;
   depth?: number;
 }) {
-  return <>{renderNode(props.node, props.columns, props.depth ?? 0, props.onChange, props.onRemove)}</>;
+  return (
+    <>{renderNode(props.node, props.columns, props.depth ?? 0, props.onChange, props.onRemove)}</>
+  );
 }
 
+/** 出力節の枠。木が空のときは条件なしを表す。 */
 export function OutputSection(props: {
   node: OutputNode | null;
   columns: Column[];
@@ -165,22 +207,30 @@ export function OutputSection(props: {
       <div class="flex items-center gap-2 mb-2">
         <h2 class="font-bold text-purple-900">出力</h2>
         {props.node === null ? (
-          <button type="button" class="border border-emp-1 rounded px-2 py-0.5 hover:bg-emp-4"
-            onClick={() => props.onChange({ kind: "group", op: "AND", children: [] })}>
+          <button
+            type="button"
+            class="border border-emp-1 rounded px-2 py-0.5 hover:bg-emp-4"
+            onClick={() => props.onChange({ kind: "group", op: "AND", children: [] })}
+          >
             条件を組み立てる
           </button>
         ) : (
-          <button type="button" class="text-xs text-gray-500 hover:text-red-600 ml-auto"
+          <button
+            type="button"
+            class="text-xs text-gray-500 hover:text-red-600 ml-auto"
             onClick={() => {
               if (confirm("出力条件をすべて消します。よろしいですか?")) props.onChange(null);
-            }}>
+            }}
+          >
             すべて消す
           </button>
         )}
       </div>
-      {props.node === null
-        ? <p class="text-xs text-gray-500">指定しない場合はすべての行が対象になります。</p>
-        : <OutputTree node={props.node} columns={props.columns} onChange={props.onChange} />}
+      {props.node === null ? (
+        <p class="text-xs text-gray-500">指定しない場合はすべての行が対象になります。</p>
+      ) : (
+        <OutputTree node={props.node} columns={props.columns} onChange={props.onChange} />
+      )}
     </section>
   );
 }

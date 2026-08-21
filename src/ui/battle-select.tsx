@@ -7,6 +7,7 @@ function optionLabel(b: Battle): string {
   return date === undefined ? BATTLE_LABEL[b] : `${BATTLE_LABEL[b]} (${date})`;
 }
 
+/** 戦闘種別を選ぶ枠。対応する列カタログの世代も添える。 */
 export function BattleSelect(props: { value: Battle; onChange: (b: Battle) => void }) {
   return (
     <section class="bg-bg-panel border border-gray-300 rounded p-3">
@@ -16,7 +17,11 @@ export function BattleSelect(props: { value: Battle; onChange: (b: Battle) => vo
         value={props.value}
         onChange={(e) => props.onChange((e.target as HTMLSelectElement).value as Battle)}
       >
-        {BATTLES.map((b) => <option key={b} value={b}>{optionLabel(b)}</option>)}
+        {BATTLES.map((b) => (
+          <option key={b} value={b}>
+            {optionLabel(b)}
+          </option>
+        ))}
       </select>
     </section>
   );

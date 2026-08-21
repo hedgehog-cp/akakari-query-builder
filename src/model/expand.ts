@@ -1,12 +1,15 @@
 import type { OutputNode, Side, SlotAttr, SlotAttrCond } from "./types";
 import { SLOT_COUNT } from "./types";
 
+/** 装備スロットの列名を組み立てる。 */
 export function slotColumn(side: Side, slot: number, attr: SlotAttr): string {
   return `${side}.装備${slot}.${attr}`;
 }
 
+/** CSV の 表示装備1〜3。 */
 export const DISPLAY_ITEM_COUNT = 3;
 
+/** 表示装備の列名を組み立てる。 */
 export function displayItemColumn(n: number): string {
   return `表示装備${n}`;
 }
@@ -45,6 +48,7 @@ function andOf(nodes: OutputNode[]): OutputNode {
   return nodes.length === 1 ? nodes[0] : { kind: "group", op: "AND", children: nodes };
 }
 
+/** 装備スロット条件と表示装備条件を、CSV の列条件だけの木へ展開する。 */
 export function expandOutput(node: OutputNode): OutputNode {
   switch (node.kind) {
     case "column":
@@ -77,7 +81,11 @@ export function expandOutput(node: OutputNode): OutputNode {
     }
     case "displayItem": {
       const all = Array.from({ length: DISPLAY_ITEM_COUNT }, (_, i) => i + 1);
-      const branch = (k: number): OutputNode => ({ kind: "column", column: displayItemColumn(k), cond: node.cond });
+      const branch = (k: number): OutputNode => ({
+        kind: "column",
+        column: displayItemColumn(k),
+        cond: node.cond,
+      });
       return node.quantity.kind === "any"
         ? { kind: "group", op: "OR", children: all.map(branch) }
         : { kind: "group", op: "AND", children: all.map(branch) };

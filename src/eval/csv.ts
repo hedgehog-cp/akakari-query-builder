@@ -1,3 +1,4 @@
+/** 先頭に BOM があれば取り除く。 */
 export function stripBom(s: string): string {
   return s.charCodeAt(0) === 0xfeff ? s.slice(1) : s;
 }
@@ -93,9 +94,7 @@ const NEEDS_QUOTE = /[",\r\n]/;
 
 /** 書き出し用。必要なときだけ引用する。 */
 export function formatCsvRow(cells: string[]): string {
-  return cells
-    .map((c) => (NEEDS_QUOTE.test(c) ? `"${c.replace(/"/g, '""')}"` : c))
-    .join(",");
+  return cells.map((c) => (NEEDS_QUOTE.test(c) ? `"${c.replace(/"/g, '""')}"` : c)).join(",");
 }
 
 const NEEDS_QUOTE_TSV = /["\t\r\n]/;
@@ -105,7 +104,5 @@ const NEEDS_QUOTE_TSV = /["\t\r\n]/;
  * (Excel/スプレッドシートは TSV でも "" によるエスケープを解釈する)
  */
 export function formatTsvRow(cells: string[]): string {
-  return cells
-    .map((c) => (NEEDS_QUOTE_TSV.test(c) ? `"${c.replace(/"/g, '""')}"` : c))
-    .join("\t");
+  return cells.map((c) => (NEEDS_QUOTE_TSV.test(c) ? `"${c.replace(/"/g, '""')}"` : c)).join("\t");
 }

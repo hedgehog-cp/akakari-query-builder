@@ -29,10 +29,11 @@ Node.js 22 以降。
 npm install
 npm run dev     # 開発サーバ
 npm test        # 単体テスト (vitest, Node環境。UIコンポーネントは対象外)
+npm run fmt     # Prettier で整形 (CI では fmt:check で未整形を落とす)
 npm run build   # 型検査(tsc)のうえ dist/ へ出力 (ビルド成果物, コミットしない)
 ```
 
-同梱データと取得先の面倒を見るコマンド。
+同梱データと取得先を保守するためのコマンド。
 
 ```shell
 npm run gen:master             # マスタデータの再生成 (.repositories/api_start2 が要る)

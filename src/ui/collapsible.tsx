@@ -1,18 +1,19 @@
 import type { ComponentChildren } from "preact";
 import { useState } from "preact/hooks";
 
-/**
- * セクションの開閉見出し。姉妹サイト(../falsification-search/index.html の
- * toggleSection)と同じ ▼/▶ の見た目に合わせている。
- */
+/** セクションの開閉見出し。開いていれば ▼、畳んでいれば ▶ を出す。 */
 export function SectionToggle(props: {
   open: boolean;
   onToggle: () => void;
   children: ComponentChildren;
 }) {
   return (
-    <button type="button" class="flex items-center gap-2 text-left" aria-expanded={props.open}
-      onClick={props.onToggle}>
+    <button
+      type="button"
+      class="flex items-center gap-2 text-left"
+      aria-expanded={props.open}
+      onClick={props.onToggle}
+    >
       <span class="text-xs text-gray-500">{props.open ? "▼" : "▶"}</span>
       {props.children}
     </button>
@@ -23,7 +24,7 @@ export function SectionToggle(props: {
  * 見出しのクリックで中身を開閉する枠。
  *
  * 開閉状態をこのコンポーネントの中に閉じ込めているのは速度のため。呼び出し側
- * (App)が状態を持つと、開閉のたびに App 以下すべて — プレビュー表の3万セルを
+ * (App)が状態を持つと、開閉のたびに App 以下すべて — プレビュー表の数万セルを
  * 含む — が再描画の対象になる。ここで持てば再描画はこの枠だけで済み、中身
  * (props.children)は前回と同じ vnode なので Preact が差分計算を丸ごと省く。
  *

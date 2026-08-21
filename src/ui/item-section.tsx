@@ -53,12 +53,17 @@ function renderItemCond(
     return (
       <div class="flex items-center gap-1 py-0.5">
         <span class="text-xs">装備が存在する</span>
-        <button type="button" class="border border-emp-1 rounded px-2 py-0.5 hover:bg-emp-4"
-          onClick={() => onChange(newAttrCond())}>
+        <button
+          type="button"
+          class="border border-emp-1 rounded px-2 py-0.5 hover:bg-emp-4"
+          onClick={() => onChange(newAttrCond())}
+        >
           条件を付ける
         </button>
         {onRemove !== undefined && (
-          <button type="button" class="text-gray-500 hover:text-red-600 px-1" onClick={onRemove}>✕</button>
+          <button type="button" class="text-gray-500 hover:text-red-600 px-1" onClick={onRemove}>
+            ✕
+          </button>
         )}
       </div>
     );
@@ -68,28 +73,46 @@ function renderItemCond(
     const isCategory = cond.attr === "装備カテゴリ";
     return (
       <div class="flex flex-wrap items-center gap-1 py-0.5">
-        <select class="border border-gray-300 rounded px-1" value={cond.attr}
-          onChange={(e) => onChange({
-            kind: "attr",
-            attr: (e.target as HTMLSelectElement).value as ItemAttr,
-            cond: defaultCond("一致", NO_COLUMN),
-          })}>
-          {ITEM_ATTRS.map((a) => <option key={a} value={a}>{a}</option>)}
-        </select>
-        <ValueCondEditor column={NO_COLUMN} cond={cond.cond}
-          pickerTarget={
-            cond.attr === "装備名" ? { kind: "equip" }
-            : cond.attr === "装備ID" ? { kind: "equipId" }
-            : null
+        <select
+          class="border border-gray-300 rounded px-1"
+          value={cond.attr}
+          onChange={(e) =>
+            onChange({
+              kind: "attr",
+              attr: (e.target as HTMLSelectElement).value as ItemAttr,
+              cond: defaultCond("一致", NO_COLUMN),
+            })
           }
-          onChange={(c) => onChange({ ...cond, cond: c })} />
+        >
+          {ITEM_ATTRS.map((a) => (
+            <option key={a} value={a}>
+              {a}
+            </option>
+          ))}
+        </select>
+        <ValueCondEditor
+          column={NO_COLUMN}
+          cond={cond.cond}
+          pickerTarget={
+            cond.attr === "装備名"
+              ? { kind: "equip" }
+              : cond.attr === "装備ID"
+                ? { kind: "equipId" }
+                : null
+          }
+          onChange={(c) => onChange({ ...cond, cond: c })}
+        />
         {isCategory && (
           <datalist id="equip-categories">
-            {master.equipTypes.map((t) => <option key={t.id} value={t.name} />)}
+            {master.equipTypes.map((t) => (
+              <option key={t.id} value={t.name} />
+            ))}
           </datalist>
         )}
         {onRemove !== undefined && (
-          <button type="button" class="text-gray-500 hover:text-red-600 px-1" onClick={onRemove}>✕</button>
+          <button type="button" class="text-gray-500 hover:text-red-600 px-1" onClick={onRemove}>
+            ✕
+          </button>
         )}
       </div>
     );
@@ -106,11 +129,18 @@ function renderItemCond(
         onChange({ kind: "group", op, children });
       }}
       onChildrenChange={(children) => onChange({ ...cond, children })}
-      addRuleActions={[{
-        label: "+ 条件",
-        onClick: () => onChange({ ...cond, children: [...cond.children, newAttrCond()] }),
-      }]}
-      onAddGroup={() => onChange({ ...cond, children: [...cond.children, { kind: "group", op: "OR", children: [] }] })}
+      addRuleActions={[
+        {
+          label: "+ 条件",
+          onClick: () => onChange({ ...cond, children: [...cond.children, newAttrCond()] }),
+        },
+      ]}
+      onAddGroup={() =>
+        onChange({
+          ...cond,
+          children: [...cond.children, { kind: "group", op: "OR", children: [] }],
+        })
+      }
       onRemove={onRemove}
       renderChild={(child, onChildChange, onChildRemove) =>
         renderItemCond(child, depth + 1, onChildChange, onChildRemove)
@@ -135,10 +165,19 @@ function renderCountNode(
       <div class="border border-gray-200 rounded p-2 my-1">
         <div class="flex flex-wrap items-center gap-1">
           <span class="text-xs">条件を満たすスロット数が</span>
-          <ValueCondEditor column={NO_COLUMN} cond={node.count}
-            onChange={(c) => onChange({ ...node, count: c })} />
+          <ValueCondEditor
+            column={NO_COLUMN}
+            cond={node.count}
+            onChange={(c) => onChange({ ...node, count: c })}
+          />
           {onRemove !== undefined && (
-            <button type="button" class="text-gray-500 hover:text-red-600 px-1 ml-auto" onClick={onRemove}>✕</button>
+            <button
+              type="button"
+              class="text-gray-500 hover:text-red-600 px-1 ml-auto"
+              onClick={onRemove}
+            >
+              ✕
+            </button>
           )}
         </div>
         <div class="pl-3">
@@ -158,16 +197,29 @@ function renderCountNode(
         onChange({ kind: "group", op, children });
       }}
       onChildrenChange={(children) => onChange({ ...node, children })}
-      addRuleActions={[{
-        label: "+ 装備数の条件",
-        onClick: () => onChange({
+      addRuleActions={[
+        {
+          label: "+ 装備数の条件",
+          onClick: () =>
+            onChange({
+              ...node,
+              children: [
+                ...node.children,
+                {
+                  kind: "count",
+                  count: { kind: "cmp", op: "以上", value: 1 },
+                  cond: { kind: "exists" },
+                },
+              ],
+            }),
+        },
+      ]}
+      onAddGroup={() =>
+        onChange({
           ...node,
-          children: [...node.children, {
-            kind: "count", count: { kind: "cmp", op: "以上", value: 1 }, cond: { kind: "exists" },
-          }],
-        }),
-      }]}
-      onAddGroup={() => onChange({ ...node, children: [...node.children, { kind: "group", op: "OR", children: [] }] })}
+          children: [...node.children, { kind: "group", op: "OR", children: [] }],
+        })
+      }
       onRemove={onRemove}
       renderChild={(child, onChildChange, onChildRemove) =>
         renderCountNode(child, depth + 1, onChildChange, onChildRemove)
@@ -181,6 +233,7 @@ function renderCountNode(
   );
 }
 
+/** 攻撃艦・防御艦の装備条件をまとめる枠。 */
 export function ItemSection(props: {
   title: "攻撃艦装備" | "防御艦装備";
   node: CountItemNode | null;
@@ -191,30 +244,40 @@ export function ItemSection(props: {
       <div class="flex items-center gap-2 mb-1">
         <h2 class="font-bold text-purple-900">{props.title}</h2>
         {props.node === null ? (
-          <button type="button" class="border border-emp-1 rounded px-2 py-0.5 hover:bg-emp-4"
-            onClick={() => props.onChange({
-              kind: "count",
-              count: { kind: "cmp", op: "以上", value: 1 },
-              cond: { kind: "exists" },
-            })}>
+          <button
+            type="button"
+            class="border border-emp-1 rounded px-2 py-0.5 hover:bg-emp-4"
+            onClick={() =>
+              props.onChange({
+                kind: "count",
+                count: { kind: "cmp", op: "以上", value: 1 },
+                cond: { kind: "exists" },
+              })
+            }
+          >
             条件を付ける
           </button>
         ) : (
-          <button type="button" class="text-xs text-gray-500 hover:text-red-600 ml-auto"
+          <button
+            type="button"
+            class="text-xs text-gray-500 hover:text-red-600 ml-auto"
             onClick={() => {
-              if (confirm(`${props.title}の条件をすべて消します。よろしいですか?`)) props.onChange(null);
-            }}>
+              if (confirm(`${props.title}の条件をすべて消します。よろしいですか?`))
+                props.onChange(null);
+            }}
+          >
             すべて消す
           </button>
         )}
       </div>
       <p class="text-xs text-gray-500 mb-1">
-        この節は CSV の列だけでは評価できません(装備ID・カテゴリ・装備自体の性能は CSV に列がありません)。
-        プレビューでも QUERY 出力でも無視されます。
-        CSV で判定したい場合は<strong>出力節の「装備スロット条件」</strong>を使ってください。
+        この節は CSV の列だけでは評価できません(装備ID・カテゴリ・装備自体の性能は CSV
+        に列がありません)。 プレビューでも QUERY 出力でも無視されます。 CSV で判定したい場合は
+        <strong>出力節の「装備スロット条件」</strong>を使ってください。
       </p>
       <p class="text-xs text-gray-500 mb-2">
-        数えるのはメイン1〜4スロットと増設の計5枠です。<strong>メイン5スロット目は数に入りません</strong>
+        数えるのはメイン1〜4スロットと増設の計5枠です。
+        <strong>メイン5スロット目は数に入りません</strong>
         (logbook の実装がそうなっています)。装備スロット条件なら装備1〜6の6枠を見られます。
       </p>
       {props.node !== null && renderCountNode(props.node, 0, props.onChange, undefined)}

@@ -23,7 +23,7 @@ describe("master", () => {
     expect(abyssal?.name).toBe("駆逐イ級");
   });
 
-  it("艦は読みを持つ", () => {
+  it("艦はよみを持つ", () => {
     expect(master.ships.find((s) => s.id === 1)?.yomi).not.toBe("");
   });
 

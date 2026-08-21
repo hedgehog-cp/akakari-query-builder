@@ -2,8 +2,8 @@
 // 列カタログの取得先が生きているかを見る。
 //
 // 画面は取得に失敗しても同梱データにフォールバックして動いてしまうため、
-// 取得先が404になっても気づけない(実際に akakari-schema が配信の形を変えたとき、
-// 気づかないままフォールバックで動き続けていた)。CI から定期的に叩いて表に出す。
+// 取得先が404になっても気づけない(実際に配信の形が変わったとき、気づかないまま
+// フォールバックで動き続けていた)。CI から叩いて表に出す。
 
 import { SCHEMA_IDS, schemaUrl } from "./schema-urls.mjs";
 
@@ -32,6 +32,8 @@ for (const id of SCHEMA_IDS) {
 }
 
 if (failed > 0) {
-  console.error(`\n${failed} 件の取得先が壊れています。akakari-schema 側の配信を確認してください。`);
+  console.error(
+    `\n${failed} 件の取得先が壊れています。akakari-schema 側の配信を確認してください。`,
+  );
   process.exit(1);
 }

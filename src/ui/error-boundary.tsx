@@ -4,6 +4,7 @@ import { clearDraft } from "../storage/draft";
 type Props = { children: ComponentChildren };
 type State = { error: Error | null };
 
+/** 描画中の例外を受け止め、白い画面の代わりに立て直す手段を出す。 */
 export class ErrorBoundary extends Component<Props, State> {
   state: State = { error: null };
 
@@ -23,8 +24,13 @@ export class ErrorBoundary extends Component<Props, State> {
         <div class="max-w-lg mx-auto mt-10 p-4 border border-red-400 bg-red-50 rounded text-sm">
           <p class="text-red-700 font-bold mb-2">表示中にエラーが発生しました。</p>
           <p class="mb-2">保存されていた下書きを破棄しました。ページを再読み込みしてください。</p>
-          <button type="button" class="border border-red-400 rounded px-2 py-0.5"
-            onClick={() => location.reload()}>再読み込み</button>
+          <button
+            type="button"
+            class="border border-red-400 rounded px-2 py-0.5"
+            onClick={() => location.reload()}
+          >
+            再読み込み
+          </button>
         </div>
       );
     }

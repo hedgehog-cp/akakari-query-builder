@@ -6,6 +6,7 @@ import { parseQuery, type ParseWarning } from "../parse/json";
 import type { Column } from "../schema/catalog";
 import { JsonHighlight } from "./json-highlight";
 
+/** 組み立てた結果を出す枠。テキストを直接編集すると、その内容をクエリに取り込む。 */
 export function ResultPane(props: {
   query: Query;
   columns: Column[];
@@ -83,7 +84,7 @@ export function ResultPane(props: {
     const file = e.dataTransfer?.files?.[0];
     if (file === undefined) return;
     // タイピング中のデバウンスタイマーが残っていると、ドロップ直後の
-    // 反映から最大400ms後にその古い入力内容でapplyTextが呼ばれ、
+    // 反映のあとにその古い入力内容でapplyTextが呼ばれ、
     // ドロップした内容を静かに上書きしてしまう。flushPendingと同様に
     // ここで確実にキャンセルする。
     if (debounceRef.current !== null) {
@@ -135,95 +136,137 @@ export function ResultPane(props: {
           クリップボードにコピーしました
         </div>
       )}
-      <section class="bg-bg-panel border border-gray-300 rounded p-3 flex flex-col h-full"
+      <section
+        class="bg-bg-panel border border-gray-300 rounded p-3 flex flex-col h-full"
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => void handleDrop(e)}
       >
-      {/* 表示形式の切り替えと操作ボタンは1本の行に左詰めで並べる。右端に寄せると
+        {/* 表示形式の切り替えと操作ボタンは1本の行に左詰めで並べる。右端に寄せると
           出力欄の幅によってボタンの位置が動き、目で追いにくいため。 */}
-      <div class="flex flex-wrap items-center gap-2 mb-2">
-        <div class="flex flex-wrap items-center gap-3 border border-gray-300 rounded px-2 py-0.5">
-          <label class="flex items-center gap-1">
-            <input type="radio" name="output-format" checked={tab === "hjson"}
-              onChange={() => setTab("hjson")} />
-            JSON
-          </label>
-          <label class="flex items-center gap-1">
-            <input type="radio" name="output-format" checked={tab === "query"}
-              onChange={() => setTab("query")} />
-            Google Visualization Query
-          </label>
-        </div>
-        <button type="button" class="border border-gray-300 rounded px-2 py-0.5 hover:bg-emp-4"
-          onClick={() => {
-            void navigator.clipboard.writeText(tab === "hjson" ? draftText : text);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-          }}>コピー</button>
-        <button type="button" class="border border-gray-300 rounded px-2 py-0.5 hover:bg-emp-4"
-          onClick={() => {
-            const blob = new Blob([tab === "hjson" ? draftText : text], { type: "application/json;charset=utf-8" });
-            const a = document.createElement("a");
-            a.href = URL.createObjectURL(blob);
-            a.download = "akakari-query.hjson";
-            a.click();
-            URL.revokeObjectURL(a.href);
-          }}>ダウンロード</button>
-        <button type="button" class="border border-gray-300 rounded px-2 py-0.5 hover:bg-emp-4"
-          onClick={() => void pickFile()}>JSON を読み込む</button>
-        <span class="text-xs text-gray-500">JSONをドラッグ&ドロップして読み込み</span>
-      </div>
-      {error !== null && (
-        <p class="text-xs text-red-600 mb-1">読み込めませんでした: {error}</p>
-      )}
-      {tab === "query" && (
-        <div class="text-xs text-gray-600 mb-1 space-y-1">
-          <label class="flex items-center gap-1">
-            <input type="checkbox" checked={includeDate}
-              onChange={(e) => setIncludeDate((e.target as HTMLInputElement).checked)} />
-            日時を QUERY に載せる(日付列が日時値として取り込まれている場合のみ効きます)
-          </label>
-          {gq.dropped.length > 0 && (
-            <p class="text-red-600">
-              次の条件は QUERY に反映されていません: {gq.dropped.join(", ")}
-              {(gq.dropped.includes("攻撃艦装備") || gq.dropped.includes("防御艦装備")) &&
-                "。CSV で判定するには出力節の「装備スロット条件」を使ってください。"}
-            </p>
-          )}
-          {gq.warnings.map((w, i) => <p key={i} class="text-amber-700">{w}</p>)}
-        </div>
-      )}
-      <div class={tab === "hjson" ? "flex-1 flex flex-col min-h-0" : "hidden"}>
-        <div class="relative flex-1 min-h-[26rem]"
-          style={resizedHeight !== null ? { minHeight: resizedHeight } : undefined}>
-          <pre
-            ref={preRef}
-            aria-hidden="true"
-            class="pointer-events-none absolute inset-0 m-0 text-xs bg-[#1e1e1e] rounded p-2 overflow-hidden h-full w-full font-mono whitespace-pre-wrap break-words border border-transparent"
-            style={preSize !== null ? { height: `${preSize.height}px`, width: `${preSize.width}px` } : undefined}
-          >
-            <JsonHighlight text={draftText} />
-          </pre>
-          <textarea
-            ref={textareaRef}
-            class="relative text-xs bg-transparent border border-gray-200 rounded p-2 overflow-auto h-full w-full font-mono whitespace-pre-wrap break-words text-transparent caret-gray-100"
-            value={draftText}
-            onFocus={() => setFocused(true)}
-            onBlur={() => { flushPending(); setFocused(false); }}
-            onInput={(e) => handleTextareaInput((e.target as HTMLTextAreaElement).value)}
-            onScroll={(e) => {
-              const el = e.target as HTMLTextAreaElement;
-              if (preRef.current !== null) {
-                preRef.current.scrollTop = el.scrollTop;
-                preRef.current.scrollLeft = el.scrollLeft;
-              }
+        <div class="flex flex-wrap items-center gap-2 mb-2">
+          <div class="flex flex-wrap items-center gap-3 border border-gray-300 rounded px-2 py-0.5">
+            <label class="flex items-center gap-1">
+              <input
+                type="radio"
+                name="output-format"
+                checked={tab === "hjson"}
+                onChange={() => setTab("hjson")}
+              />
+              JSON
+            </label>
+            <label class="flex items-center gap-1">
+              <input
+                type="radio"
+                name="output-format"
+                checked={tab === "query"}
+                onChange={() => setTab("query")}
+              />
+              Google Visualization Query
+            </label>
+          </div>
+          <button
+            type="button"
+            class="border border-gray-300 rounded px-2 py-0.5 hover:bg-emp-4"
+            onClick={() => {
+              void navigator.clipboard.writeText(tab === "hjson" ? draftText : text);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
             }}
-          />
+          >
+            コピー
+          </button>
+          <button
+            type="button"
+            class="border border-gray-300 rounded px-2 py-0.5 hover:bg-emp-4"
+            onClick={() => {
+              const blob = new Blob([tab === "hjson" ? draftText : text], {
+                type: "application/json;charset=utf-8",
+              });
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(blob);
+              a.download = "akakari-query.hjson";
+              a.click();
+              URL.revokeObjectURL(a.href);
+            }}
+          >
+            ダウンロード
+          </button>
+          <button
+            type="button"
+            class="border border-gray-300 rounded px-2 py-0.5 hover:bg-emp-4"
+            onClick={() => void pickFile()}
+          >
+            JSON を読み込む
+          </button>
+          <span class="text-xs text-gray-500">JSONをドラッグ&ドロップして読み込み</span>
         </div>
-      </div>
-      <div class={tab === "query" ? "" : "hidden"}>
-        <pre class="text-xs bg-gray-50 border border-gray-200 rounded p-2 overflow-auto max-h-[60vh] w-full whitespace-pre-wrap break-words">{text}</pre>
-      </div>
+        {error !== null && <p class="text-xs text-red-600 mb-1">読み込めませんでした: {error}</p>}
+        {tab === "query" && (
+          <div class="text-xs text-gray-600 mb-1 space-y-1">
+            <label class="flex items-center gap-1">
+              <input
+                type="checkbox"
+                checked={includeDate}
+                onChange={(e) => setIncludeDate((e.target as HTMLInputElement).checked)}
+              />
+              日時を QUERY に載せる(日付列が日時値として取り込まれている場合のみ効きます)
+            </label>
+            {gq.dropped.length > 0 && (
+              <p class="text-red-600">
+                次の条件は QUERY に反映されていません: {gq.dropped.join(", ")}
+                {(gq.dropped.includes("攻撃艦装備") || gq.dropped.includes("防御艦装備")) &&
+                  "。CSV で判定するには出力節の「装備スロット条件」を使ってください。"}
+              </p>
+            )}
+            {gq.warnings.map((w, i) => (
+              <p key={i} class="text-amber-700">
+                {w}
+              </p>
+            ))}
+          </div>
+        )}
+        <div class={tab === "hjson" ? "flex-1 flex flex-col min-h-0" : "hidden"}>
+          <div
+            class="relative flex-1 min-h-[26rem]"
+            style={resizedHeight !== null ? { minHeight: resizedHeight } : undefined}
+          >
+            <pre
+              ref={preRef}
+              aria-hidden="true"
+              class="pointer-events-none absolute inset-0 m-0 text-xs bg-[#1e1e1e] rounded p-2 overflow-hidden h-full w-full font-mono whitespace-pre-wrap break-words border border-transparent"
+              style={
+                preSize !== null
+                  ? { height: `${preSize.height}px`, width: `${preSize.width}px` }
+                  : undefined
+              }
+            >
+              <JsonHighlight text={draftText} />
+            </pre>
+            <textarea
+              ref={textareaRef}
+              class="relative text-xs bg-transparent border border-gray-200 rounded p-2 overflow-auto h-full w-full font-mono whitespace-pre-wrap break-words text-transparent caret-gray-100"
+              value={draftText}
+              onFocus={() => setFocused(true)}
+              onBlur={() => {
+                flushPending();
+                setFocused(false);
+              }}
+              onInput={(e) => handleTextareaInput((e.target as HTMLTextAreaElement).value)}
+              onScroll={(e) => {
+                const el = e.target as HTMLTextAreaElement;
+                if (preRef.current !== null) {
+                  preRef.current.scrollTop = el.scrollTop;
+                  preRef.current.scrollLeft = el.scrollLeft;
+                }
+              }}
+            />
+          </div>
+        </div>
+        <div class={tab === "query" ? "" : "hidden"}>
+          <pre class="text-xs bg-gray-50 border border-gray-200 rounded p-2 overflow-auto max-h-[60vh] w-full whitespace-pre-wrap break-words">
+            {text}
+          </pre>
+        </div>
       </section>
     </>
   );

@@ -3,10 +3,17 @@ import type { Query } from "../model/types";
 import { compileQuery } from "./compile";
 import { CsvParser, formatCsvRow } from "./csv";
 
+/** 画面からワーカーへの依頼。 */
 export type PreviewRequest = { query: Query; header: string[]; file: File };
 
+/** ワーカーから画面への報せ。 */
 export type PreviewMessage =
-  | { type: "progress"; scanned: number; matched: number; /** 読み終えたバイト数(File.size に対する進捗) */ bytes: number }
+  | {
+      type: "progress";
+      scanned: number;
+      matched: number;
+      /** 読み終えたバイト数(File.size に対する進捗) */ bytes: number;
+    }
   | { type: "header-mismatch"; missing: string[]; extra: string[] }
   | {
       type: "done";
@@ -26,7 +33,7 @@ export type PreviewMessage =
  * 画面に保持する一致行の上限。1ページ200行なので50ページぶん。
  * 全一致行は csv 文字列としても返しており、コピー・ダウンロードはそちらを使うため、
  * ここを増やしても得られるのは「さらに奥のページをめくれる」ことだけ。
- * 155列×数十万行を配列のまま持つとメモリを食い潰すので上限を設ける。
+ * 多数の列×数十万行を配列のまま持つとメモリを食い潰すので上限を設ける。
  */
 const PREVIEW_ROWS = 10000;
 
@@ -109,8 +116,13 @@ self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
     // 元のCSVと同じ形式で書き出す: UTF-8 BOM付き・CRLF・ヘッダ行あり
     const csv = "﻿" + out.join("\r\n") + "\r\n";
     post({
-      type: "done", scanned, matched, rows: keptRows, truncated: matched > keptRows.length,
-      header: csvHeader ?? header, csv,
+      type: "done",
+      scanned,
+      matched,
+      rows: keptRows,
+      truncated: matched > keptRows.length,
+      header: csvHeader ?? header,
+      csv,
       ignored: state.compiled?.ignored ?? [],
     });
   } catch (err) {

@@ -3,8 +3,10 @@ import type { ComponentChildren } from "preact";
 import Sortable from "sortablejs";
 import { reorder } from "./reorder";
 
+/** グループの演算子。 */
 export type GroupOp = "AND" | "OR" | "NOT";
 
+/** ヘッダに並べる追加ボタン1つぶん。 */
 export type AddRuleAction = { label: string; onClick: () => void };
 
 const OP_LABEL: Record<GroupOp, string> = {
@@ -26,6 +28,7 @@ export function OpBadge(props: { op: GroupOp }) {
 
 const DEFAULT_EMPTY_MESSAGE = "空です。条件を追加するか削除してください";
 
+/** AND/OR/NOT でくくった子の並び。子の中身の描画は呼び出し側に任せる。 */
 export function RuleGroup<T>(props: {
   op: GroupOp;
   children: T[];
@@ -93,10 +96,12 @@ export function RuleGroup<T>(props: {
       {/* 幅が足りないときは要素ごと折り返す。flex-wrap がないと日本語の
           ボタン文字が1文字幅まで潰れて「+ 属 / 性」のように割れる。 */}
       <div class="flex flex-wrap items-center gap-1 py-0.5">
-        <button type="button"
+        <button
+          type="button"
           class="text-gray-500 hover:text-gray-800 w-4 text-center"
           onClick={() => setCollapsed((c) => !c)}
-          aria-label={collapsed ? "展開" : "折りたたむ"}>
+          aria-label={collapsed ? "展開" : "折りたたむ"}
+        >
           {collapsed ? "▸" : "▾"}
         </button>
         {props.opEditable === false ? (
@@ -115,38 +120,59 @@ export function RuleGroup<T>(props: {
         {(!isNot || props.children.length === 0) && (
           <>
             {props.addRuleActions.map((a) => (
-              <button key={a.label} type="button"
+              <button
+                key={a.label}
+                type="button"
                 class="border border-emp-1 rounded px-2 py-0.5 hover:bg-emp-4 whitespace-nowrap shrink-0"
-                onClick={a.onClick}>
+                onClick={a.onClick}
+              >
                 {a.label}
               </button>
             ))}
             {props.onAddGroup !== undefined && (
-              <button type="button" class="border border-emp-1 rounded px-2 py-0.5 hover:bg-emp-4 whitespace-nowrap shrink-0"
-                onClick={props.onAddGroup}>
+              <button
+                type="button"
+                class="border border-emp-1 rounded px-2 py-0.5 hover:bg-emp-4 whitespace-nowrap shrink-0"
+                onClick={props.onAddGroup}
+              >
                 + グループ
               </button>
             )}
           </>
         )}
         {props.headerExtra}
-        {props.children.length === 0 && (props.emptyMessage === undefined ? DEFAULT_EMPTY_MESSAGE : props.emptyMessage) !== null && (
-          <span class="text-xs text-red-600 whitespace-nowrap">
-            {props.emptyMessage === undefined ? DEFAULT_EMPTY_MESSAGE : props.emptyMessage}
-          </span>
-        )}
+        {props.children.length === 0 &&
+          (props.emptyMessage === undefined ? DEFAULT_EMPTY_MESSAGE : props.emptyMessage) !==
+            null && (
+            <span class="text-xs text-red-600 whitespace-nowrap">
+              {props.emptyMessage === undefined ? DEFAULT_EMPTY_MESSAGE : props.emptyMessage}
+            </span>
+          )}
         {props.onRemove !== undefined && (
-          <button type="button" class="text-gray-500 hover:text-red-600 px-1 ml-auto"
-            onClick={props.onRemove}>✕</button>
+          <button
+            type="button"
+            class="text-gray-500 hover:text-red-600 px-1 ml-auto"
+            onClick={props.onRemove}
+          >
+            ✕
+          </button>
         )}
       </div>
       <div ref={listRef} class={collapsed ? "hidden" : ""}>
         {props.children.map((c, i) => (
           <div key={props.keyOf ? props.keyOf(c, i) : i} class="flex items-start gap-1">
-            <span class="rule-drag-handle cursor-grab text-gray-400 px-1 py-1 select-none"
-              title="ドラッグで並べ替え">⋮⋮</span>
+            <span
+              class="rule-drag-handle cursor-grab text-gray-400 px-1 py-1 select-none"
+              title="ドラッグで並べ替え"
+            >
+              ⋮⋮
+            </span>
             <div class="flex-1 min-w-0">
-              {props.renderChild(c, (n) => setChild(i, n), () => removeChild(i))}
+              {props.renderChild(
+                c,
+                (n) => setChild(i, n),
+                () => removeChild(i),
+              )}
             </div>
           </div>
         ))}

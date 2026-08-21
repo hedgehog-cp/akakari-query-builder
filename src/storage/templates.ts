@@ -2,6 +2,7 @@ import type { Battle, Query } from "../model/types";
 
 const KEY = "akakari-query-builder:templates";
 
+/** 名前を付けて保存したクエリ。 */
 export type Template = { name: string; battle: Battle; query: Query; savedAt: string };
 
 function readAll(): Template[] {
@@ -23,6 +24,7 @@ function writeAll(templates: Template[]): void {
   }
 }
 
+/** 保存済みのテンプレート一覧。 */
 export function listTemplates(): Template[] {
   return readAll();
 }
@@ -35,6 +37,7 @@ export function saveTemplate(name: string, battle: Battle, query: Query): Templa
   return next;
 }
 
+/** 指定の名前を消して、残りを返す。 */
 export function deleteTemplate(name: string): Template[] {
   const next = readAll().filter((t) => t.name !== name);
   writeAll(next);

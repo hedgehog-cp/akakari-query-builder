@@ -1,3 +1,4 @@
+/** 装備モーダルの大分類タブ1つぶん。 */
 export type EquipGroup = { label: string; typeIds: number[] };
 
 /** 装備モーダルの大分類タブ。値は api_mst_slotitem_equiptype の api_id。

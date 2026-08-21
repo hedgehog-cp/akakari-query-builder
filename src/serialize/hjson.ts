@@ -1,9 +1,15 @@
 import type {
-  CountItemNode, DateRange, ItemCond, OutputNode, Query, ValueCond,
+  CountItemNode,
+  DateRange,
+  ItemCond,
+  OutputNode,
+  Query,
+  ValueCond,
 } from "../model/types";
 import { BATTLE_KEY } from "../model/types";
 import { expandOutput } from "../model/expand";
 
+/** JSON で表せる値。 */
 export type Json = string | number | boolean | null | Json[] | { [k: string]: Json };
 
 /** 一致の値。1件なら直値、複数なら配列。 */
@@ -11,6 +17,7 @@ function eqJson(values: (string | number)[]): Json {
   return values.length === 1 ? values[0] : [...values];
 }
 
+/** 列の条件を hjson の値にする。 */
 export function valueCondToJson(cond: ValueCond): Json {
   switch (cond.kind) {
     case "eq":
@@ -29,6 +36,7 @@ export function valueCondToJson(cond: ValueCond): Json {
   }
 }
 
+/** 出力節の木を hjson の値にする。 */
 export function outputToJson(node: OutputNode): Json {
   switch (node.kind) {
     case "column":
@@ -45,6 +53,7 @@ export function outputToJson(node: OutputNode): Json {
   }
 }
 
+/** 装備条件を hjson の値にする。 */
 export function itemCondToJson(cond: ItemCond): Json {
   switch (cond.kind) {
     case "exists":
@@ -59,6 +68,7 @@ export function itemCondToJson(cond: ItemCond): Json {
   }
 }
 
+/** 装備数の条件を hjson の値にする。 */
 export function countItemToJson(node: CountItemNode): Json {
   switch (node.kind) {
     case "count":
@@ -79,6 +89,7 @@ function dateRangeToJson(r: DateRange): Json {
   return o;
 }
 
+/** クエリ全体を hjson の値にする。 */
 export function queryToJson(q: Query): Json {
   const o: Record<string, Json> = { 種別: BATTLE_KEY[q.battle] };
   if (q.dateRanges.length === 1) {
@@ -92,6 +103,7 @@ export function queryToJson(q: Query): Json {
   return o;
 }
 
+/** クエリを logbook に貼れる整形済みテキストにする。 */
 export function serializeQuery(q: Query): string {
   return JSON.stringify(queryToJson(q), null, 2);
 }

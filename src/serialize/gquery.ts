@@ -2,6 +2,7 @@ import type { CompareOp, DateRange, OutputNode, Query, ValueCond } from "../mode
 import { expandOutput } from "../model/expand";
 import type { Column } from "../schema/catalog";
 
+/** toGoogleQuery の結果。 */
 export type GQueryResult = {
   query: string;
   /** 変換できずに落とした節。 */
@@ -129,8 +130,14 @@ function dateExpr(ranges: DateRange[], ctx: Ctx): string | null {
   return parts.length === 1 ? parts[0] : `(${parts.join(" or ")})`;
 }
 
+/**
+ * クエリを Google スプレッドシートの QUERY 関数の WHERE 句へ変換する。
+ * QUERY で表せない条件は落とし、落としたものと注意点を添えて返す。
+ */
 export function toGoogleQuery(
-  q: Query, columns: Column[], opts: { includeDate: boolean },
+  q: Query,
+  columns: Column[],
+  opts: { includeDate: boolean },
 ): GQueryResult {
   const ctx = new Ctx(columns);
   const dropped: string[] = [];
@@ -155,6 +162,7 @@ export function toGoogleQuery(
   if (q.attackerItems !== null) dropped.push("攻撃艦装備");
   if (q.defenderItems !== null) dropped.push("防御艦装備");
 
-  const where = terms.length === 0 ? "" : `where ${terms.length === 1 ? terms[0] : `(${terms.join(" and ")})`}`;
+  const where =
+    terms.length === 0 ? "" : `where ${terms.length === 1 ? terms[0] : `(${terms.join(" and ")})`}`;
   return { query: where, dropped, warnings: ctx.warnings };
 }

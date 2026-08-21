@@ -1,4 +1,12 @@
-import type { DisplayItemQuantity, OutputNode, Side, SlotAttr, SlotAttrCond, SlotQuantity, ValueCond } from "./types";
+import type {
+  DisplayItemQuantity,
+  OutputNode,
+  Side,
+  SlotAttr,
+  SlotAttrCond,
+  SlotQuantity,
+  ValueCond,
+} from "./types";
 import { SLOT_COUNT } from "./types";
 import { combinations, DISPLAY_ITEM_COUNT } from "./expand";
 
@@ -23,9 +31,11 @@ function parseSlotColumn(column: string): Parsed | null {
 /** 1つの枝(列条件、または列条件のANDグループ)を {side, slot, attrs} に読む。 */
 function readBranch(node: OutputNode): { side: Side; slot: number; attrs: SlotAttrCond[] } | null {
   const cols: OutputNode[] =
-    node.kind === "column" ? [node]
-    : node.kind === "group" && node.op === "AND" ? node.children
-    : [];
+    node.kind === "column"
+      ? [node]
+      : node.kind === "group" && node.op === "AND"
+        ? node.children
+        : [];
   if (cols.length === 0) return null;
 
   const attrs: SlotAttrCond[] = [];
@@ -37,9 +47,9 @@ function readBranch(node: OutputNode): { side: Side; slot: number; attrs: SlotAt
     const p = parseSlotColumn(c.column);
     if (p === null) return null;
     if (side === null) side = p.side;
-    else if (side !== p.side) return null;   // 攻撃艦と防御艦が混ざっている
+    else if (side !== p.side) return null; // 攻撃艦と防御艦が混ざっている
     if (slot === null) slot = p.slot;
-    else if (slot !== p.slot) return null;   // 1つの枝が複数スロットを跨いでいる
+    else if (slot !== p.slot) return null; // 1つの枝が複数スロットを跨いでいる
     attrs.push({ attr: p.attr, cond: c.cond });
   }
   if (side === null || slot === null) return null;
@@ -52,7 +62,11 @@ function shape(attrs: SlotAttrCond[]): string {
 }
 
 function sameSets(a: number[][], b: number[][]): boolean {
-  const key = (s: number[][]) => s.map((x) => [...x].sort((p, q) => p - q).join(",")).sort().join("|");
+  const key = (s: number[][]) =>
+    s
+      .map((x) => [...x].sort((p, q) => p - q).join(","))
+      .sort()
+      .join("|");
   return key(a) === key(b);
 }
 
@@ -94,7 +108,13 @@ function tryFoldGroup(node: OutputNode): OutputNode | null {
   const allSlots = Array.from({ length: SLOT_COUNT }, (_, i) => i + 1);
 
   if (sets.every((s) => s.length === 1)) {
-    if (!sameSets(sets, allSlots.map((k) => [k]))) return null;
+    if (
+      !sameSets(
+        sets,
+        allSlots.map((k) => [k]),
+      )
+    )
+      return null;
     const quantity: SlotQuantity = node.op === "OR" ? { kind: "any" } : { kind: "all" };
     return { kind: "slot", side, quantity, attrs };
   }
@@ -137,6 +157,7 @@ function tryFoldDisplayItemGroup(node: OutputNode): OutputNode | null {
   return { kind: "displayItem", quantity, cond: cond! };
 }
 
+/** expandOutput の逆。展開された木を、畳めるところだけ元の条件へ戻す。 */
 export function foldOutput(node: OutputNode): OutputNode {
   switch (node.kind) {
     case "column":
@@ -150,7 +171,12 @@ export function foldOutput(node: OutputNode): OutputNode {
         if (inner.kind === "group" && inner.op === "OR") {
           const folded = tryFoldGroup(inner);
           if (folded !== null && folded.kind === "slot" && folded.quantity.kind === "any") {
-            return { kind: "slot", side: folded.side, quantity: { kind: "none" }, attrs: folded.attrs };
+            return {
+              kind: "slot",
+              side: folded.side,
+              quantity: { kind: "none" },
+              attrs: folded.attrs,
+            };
           }
         }
         return { kind: "group", op: "NOT", children: [foldOutput(inner)] };

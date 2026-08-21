@@ -2,7 +2,7 @@ export type NameTarget = { kind: "equip" | "ship" | "equipId" };
 
 /**
  * 列名から、どの選択モーダルを出すかを決める。
- * 装備741件・艦1751件はプルダウンで選ぶ規模ではないため。
+ * 装備も艦も、プルダウンで選ぶには多すぎる件数があるため。
  */
 export function nameTargetOf(column: string): NameTarget | null {
   if (column === "攻撃艦.名前" || column === "防御艦.名前") return { kind: "ship" };

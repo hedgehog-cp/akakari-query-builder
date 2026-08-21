@@ -5,19 +5,16 @@
 /*
   フォントの統一。
   ネイティブのフォームコントロール(input/select/textarea/button)は指定がないと
-  OS 既定の UI フォント・サイズで描かれ、本文と字面が揃わない。姉妹サイト
-  (../falsification-search/falsification-search.css)と同じ本文フォントを body に
-  与えたうえで、コントロールにはそれを継承させる。
+  OS 既定の UI フォント・サイズで描かれ、本文と字面が揃わない。本文のフォントを
+  body に与えたうえで、コントロールにはそれを継承させる。
 
-  サイズ 0.8125rem(13px)は姉妹サイトの .sheet-input と同じ値。ここは要素
-  セレクタなので、Tailwind のクラス(.text-xs / .font-mono など)を付けた箇所は
-  そちらが優先される(出力欄の等幅テキストエリアなど、意図して外したい箇所は
-  クラス側で上書きする)。
+  サイズは本文に合わせた実測値。ここは要素セレクタなので、Tailwind のクラス
+  (.text-xs / .font-mono など)を付けた箇所はそちらが優先される(出力欄の等幅
+  テキストエリアなど、意図して外したい箇所はクラス側で上書きする)。
 */
 body {
   font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
-    Arial, sans-serif;
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 input,
@@ -30,10 +27,10 @@ button {
 
 /*
   折りたたみ用。display:none(Tailwind の hidden)で隠すと、再表示のたびに
-  中身のレイアウトを一からやり直す。プレビュー表は 200行×155列 = 3万セルあり、
-  実測で「畳む 30ms / 開く 220-335ms」かかっていた。content-visibility:hidden は
-  描画結果を保持したままレンダリングだけを飛ばすので、同じ表で「畳む 5ms /
-  開く 50ms」で済む。サイズ抑制が効くので高さも 0 になり、見た目は hidden と同じ。
+  中身のレイアウトを一からやり直す。プレビュー表は数万セルあり、開くたびに
+  待たされるのが分かるほど遅かった。content-visibility:hidden は描画結果を
+  保持したままレンダリングだけを飛ばすので、一桁ms台で開閉できる。サイズ抑制が
+  効くので高さも 0 になり、見た目は hidden と同じ。
 */
 .collapsed {
   content-visibility: hidden;
@@ -45,11 +42,10 @@ button {
 }
 
 /*
-  プレビュー表(200行×155列)の内部レイアウトを、外側の変化から切り離す。
-  これがないと、画面のどこか — 枠の開閉、JSON欄のタイピング、チェックボックス —
-  が変わるたびに3万セルのレイアウトまでやり直され、1操作あたり 35ms 前後かかる。
-  contain: layout paint で 13ms 前後まで下がる。表は overflow:auto の
-  スクロール枠なので、外から中身の位置に依存するものは元々ない。
+  プレビュー表の内部レイアウトを、外側の変化から切り離す。これがないと、画面の
+  どこか — 枠の開閉、JSON欄のタイピング、チェックボックス — が変わるたびに
+  数万セルのレイアウトまでやり直され、1操作ごとに目に見えて重くなる。表は
+  overflow:auto のスクロール枠なので、外から中身の位置に依存するものは元々ない。
 */
 .contain-layout {
   contain: layout paint;

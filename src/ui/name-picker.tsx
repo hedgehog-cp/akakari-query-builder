@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
-import { master, equipTypeName, isAbyssal, shipTypeName, ABYSSAL_MIN_SHIP_ID } from "../master/load";
+import {
+  master,
+  equipTypeName,
+  isAbyssal,
+  shipTypeName,
+  ABYSSAL_MIN_SHIP_ID,
+} from "../master/load";
 import { EQUIP_GROUPS, inEquipGroup } from "../master/groups";
 import type { NameTarget } from "./name-target";
 
@@ -18,15 +24,18 @@ function useEquipRows(groupIndex: number, typeId: number | null, q: string): Row
 
 function useShipRows(abyssal: boolean, stype: number | null, q: string): Row[] {
   return useMemo(() => {
-    return master.ships
-      .filter((s) => isAbyssal(s) === abyssal)
-      .filter((s) => stype === null || s.stype === stype)
-      // 装備マスタに読みは無いが、艦は読みでも引ける
-      .filter((s) => q === "" || s.name.includes(q) || s.yomi.includes(q))
-      .map((s) => ({ id: s.id, name: s.name, sub: shipTypeName(s.stype) }));
+    return (
+      master.ships
+        .filter((s) => isAbyssal(s) === abyssal)
+        .filter((s) => stype === null || s.stype === stype)
+        // 装備マスタによみは無いが、艦はよみでも引ける
+        .filter((s) => q === "" || s.name.includes(q) || s.yomi.includes(q))
+        .map((s) => ({ id: s.id, name: s.name, sub: shipTypeName(s.stype) }))
+    );
   }, [abyssal, stype, q]);
 }
 
+/** 艦名・装備名をまとめて選ぶモーダル。件数が多いので絞り込みを備える。 */
 export function NamePicker(props: {
   target: NameTarget;
   initial: (string | number)[];
@@ -59,8 +68,7 @@ export function NamePicker(props: {
     ? master.equipTypes.filter((t) => inEquipGroup(EQUIP_GROUPS[groupIndex], t.id))
     : master.shipTypes;
 
-  const valueOf = (r: Row): string | number =>
-    props.target.kind === "equipId" ? r.id : r.name;
+  const valueOf = (r: Row): string | number => (props.target.kind === "equipId" ? r.id : r.name);
 
   const toggle = (r: Row) => {
     const v = valueOf(r);
@@ -68,30 +76,62 @@ export function NamePicker(props: {
   };
 
   return (
-    <div class="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={props.onClose}>
-      <div class="bg-bg-panel rounded shadow-lg w-[min(900px,95vw)] h-[min(600px,90vh)] flex flex-col p-3"
-        onClick={(e) => e.stopPropagation()}>
+    <div
+      class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+      onClick={props.onClose}
+    >
+      <div
+        class="bg-bg-panel rounded shadow-lg w-[min(900px,95vw)] h-[min(600px,90vh)] flex flex-col p-3"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div class="flex items-center gap-2 mb-2">
           <h3 class="font-bold">{isEquip ? "装備を選ぶ" : "艦を選ぶ"}</h3>
-          <input type="text" ref={searchRef} class="border border-gray-300 rounded px-2 flex-1"
-            placeholder={isEquip ? "名前で絞り込む" : "名前または読みで絞り込む"}
-            value={q} onInput={(e) => setQ((e.target as HTMLInputElement).value)} />
-          <button type="button" class="text-gray-500 hover:text-red-600 px-1" onClick={props.onClose}>✕</button>
+          <input
+            type="text"
+            ref={searchRef}
+            class="border border-gray-300 rounded px-2 flex-1"
+            placeholder={isEquip ? "名前で絞り込む" : "名前またはよみで絞り込む"}
+            value={q}
+            onInput={(e) => setQ((e.target as HTMLInputElement).value)}
+          />
+          <button
+            type="button"
+            class="text-gray-500 hover:text-red-600 px-1"
+            onClick={props.onClose}
+          >
+            ✕
+          </button>
         </div>
 
         <div class="flex gap-1 mb-2 flex-wrap">
           {isEquip
             ? EQUIP_GROUPS.map((g, i) => (
-                <button key={g.label} type="button"
+                <button
+                  key={g.label}
+                  type="button"
                   class={`border rounded px-2 py-0.5 ${
-                    i === groupIndex ? "bg-emp-2 border-emp-1" : "border-gray-300 hover:bg-emp-4"}`}
-                  onClick={() => { setGroupIndex(i); setTypeId(null); }}>{g.label}</button>
+                    i === groupIndex ? "bg-emp-2 border-emp-1" : "border-gray-300 hover:bg-emp-4"
+                  }`}
+                  onClick={() => {
+                    setGroupIndex(i);
+                    setTypeId(null);
+                  }}
+                >
+                  {g.label}
+                </button>
               ))
             : [false, true].map((a) => (
-                <button key={String(a)} type="button"
+                <button
+                  key={String(a)}
+                  type="button"
                   class={`border rounded px-2 py-0.5 ${
-                    a === abyssal ? "bg-emp-2 border-emp-1" : "border-gray-300 hover:bg-emp-4"}`}
-                  onClick={() => { setAbyssal(a); setTypeId(null); }}>
+                    a === abyssal ? "bg-emp-2 border-emp-1" : "border-gray-300 hover:bg-emp-4"
+                  }`}
+                  onClick={() => {
+                    setAbyssal(a);
+                    setTypeId(null);
+                  }}
+                >
                   {a ? `深海棲艦 (api_id ${ABYSSAL_MIN_SHIP_ID}以上)` : "自軍"}
                 </button>
               ))}
@@ -100,13 +140,23 @@ export function NamePicker(props: {
         <div class="flex gap-2 flex-1 min-h-0">
           <ul class="w-48 overflow-auto border border-gray-200 rounded text-xs">
             <li>
-              <button type="button" class={`w-full text-left px-2 py-1 ${typeId === null ? "bg-emp-4" : ""}`}
-                onClick={() => setTypeId(null)}>すべて</button>
+              <button
+                type="button"
+                class={`w-full text-left px-2 py-1 ${typeId === null ? "bg-emp-4" : ""}`}
+                onClick={() => setTypeId(null)}
+              >
+                すべて
+              </button>
             </li>
             {subTypes.map((t) => (
               <li key={t.id}>
-                <button type="button" class={`w-full text-left px-2 py-1 ${typeId === t.id ? "bg-emp-4" : ""}`}
-                  onClick={() => setTypeId(t.id)}>{t.name}</button>
+                <button
+                  type="button"
+                  class={`w-full text-left px-2 py-1 ${typeId === t.id ? "bg-emp-4" : ""}`}
+                  onClick={() => setTypeId(t.id)}
+                >
+                  {t.name}
+                </button>
               </li>
             ))}
           </ul>
@@ -116,7 +166,9 @@ export function NamePicker(props: {
               const on = picked.includes(v);
               return (
                 <li key={r.id}>
-                  <label class={`flex items-center gap-2 px-2 py-1 cursor-pointer ${on ? "bg-emp-4" : ""}`}>
+                  <label
+                    class={`flex items-center gap-2 px-2 py-1 cursor-pointer ${on ? "bg-emp-4" : ""}`}
+                  >
                     <input type="checkbox" checked={on} onChange={() => toggle(r)} />
                     <span class="text-gray-400 w-12 shrink-0">{r.id}</span>
                     <span class="flex-1">{r.name}</span>
@@ -134,10 +186,23 @@ export function NamePicker(props: {
           <span class="text-xs text-gray-500">
             改造艦は別名です。<code>島風</code> を選んでも <code>島風改</code> は拾いません。
           </span>
-          <button type="button" class="border border-gray-300 rounded px-3 py-1 ml-auto"
-            onClick={props.onClose}>キャンセル</button>
-          <button type="button" class="border border-emp-1 bg-emp-2 rounded px-3 py-1"
-            onClick={() => { props.onPick(picked); props.onClose(); }}>確定</button>
+          <button
+            type="button"
+            class="border border-gray-300 rounded px-3 py-1 ml-auto"
+            onClick={props.onClose}
+          >
+            キャンセル
+          </button>
+          <button
+            type="button"
+            class="border border-emp-1 bg-emp-2 rounded px-3 py-1"
+            onClick={() => {
+              props.onPick(picked);
+              props.onClose();
+            }}
+          >
+            確定
+          </button>
         </div>
       </div>
     </div>

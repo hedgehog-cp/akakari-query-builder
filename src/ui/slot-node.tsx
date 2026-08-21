@@ -1,4 +1,11 @@
-import { SLOT_COUNT, type OutputNode, type Side, type SlotAttr, type SlotAttrCond, type SlotQuantity } from "../model/types";
+import {
+  SLOT_COUNT,
+  type OutputNode,
+  type Side,
+  type SlotAttr,
+  type SlotAttrCond,
+  type SlotQuantity,
+} from "../model/types";
 import { combinations } from "../model/expand";
 import type { Column } from "../schema/catalog";
 import { ValueCondEditor, defaultCond } from "./value-cond-editor";
@@ -43,6 +50,7 @@ function keyOf(a: SlotAttrCond): number {
   return key;
 }
 
+/** 装備スロット条件(いずれか / N個以上 など)を編集する行。 */
 export function SlotNodeEditor(props: {
   node: SlotNode;
   columns: Column[];
@@ -63,22 +71,41 @@ export function SlotNodeEditor(props: {
         children={node.attrs}
         depth={0}
         onChildrenChange={(attrs) => props.onChange({ ...node, attrs })}
-        addRuleActions={[{
-          label: "+ 属性",
-          onClick: () => props.onChange({
-            ...node, attrs: [...node.attrs, { attr: "名前", cond: defaultCond("含む", colOf("名前")) }],
-          }),
-        }]}
+        addRuleActions={[
+          {
+            label: "+ 属性",
+            onClick: () =>
+              props.onChange({
+                ...node,
+                attrs: [...node.attrs, { attr: "名前", cond: defaultCond("含む", colOf("名前")) }],
+              }),
+          },
+        ]}
         headerExtra={
           <>
-            <select class="border border-gray-300 rounded px-1 shrink-0" value={node.side}
-              onChange={(e) => props.onChange({ ...node, side: (e.target as HTMLSelectElement).value as Side })}>
-              {SIDES.map((s) => <option key={s} value={s}>{s}</option>)}
+            <select
+              class="border border-gray-300 rounded px-1 shrink-0"
+              value={node.side}
+              onChange={(e) =>
+                props.onChange({ ...node, side: (e.target as HTMLSelectElement).value as Side })
+              }
+            >
+              {SIDES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
             </select>
-            <select class="border border-gray-300 rounded px-1 shrink-0" value={quantityValue(node.quantity)}
-              onChange={(e) => props.onChange({
-                ...node, quantity: parseQuantity((e.target as HTMLSelectElement).value),
-              })}>
+            <select
+              class="border border-gray-300 rounded px-1 shrink-0"
+              value={quantityValue(node.quantity)}
+              onChange={(e) =>
+                props.onChange({
+                  ...node,
+                  quantity: parseQuantity((e.target as HTMLSelectElement).value),
+                })
+              }
+            >
               <option value="any">いずれかのスロットが</option>
               <option value="atLeast:2">2個以上のスロットが</option>
               <option value="atLeast:3">3個以上のスロットが</option>
@@ -95,12 +122,19 @@ export function SlotNodeEditor(props: {
         }
         renderChild={(a, onChange, onRemove) => (
           <div class="flex flex-wrap items-center gap-1 py-0.5">
-            <select class="border border-gray-300 rounded px-1" value={a.attr}
+            <select
+              class="border border-gray-300 rounded px-1"
+              value={a.attr}
               onChange={(e) => {
                 const attr = (e.target as HTMLSelectElement).value as SlotAttr;
                 onChange({ attr, cond: defaultCond("一致", colOf(attr)) });
-              }}>
-              {SLOT_ATTRS.map((s) => <option key={s} value={s}>{s}</option>)}
+              }}
+            >
+              {SLOT_ATTRS.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
             </select>
             <ValueCondEditor
               column={colOf(a.attr)}
@@ -109,7 +143,13 @@ export function SlotNodeEditor(props: {
               onChange={(cond) => onChange({ ...a, cond })}
             />
             {onRemove !== undefined && (
-              <button type="button" class="text-gray-500 hover:text-red-600 px-1" onClick={onRemove}>✕</button>
+              <button
+                type="button"
+                class="text-gray-500 hover:text-red-600 px-1"
+                onClick={onRemove}
+              >
+                ✕
+              </button>
             )}
           </div>
         )}

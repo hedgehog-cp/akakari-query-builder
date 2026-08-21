@@ -1,8 +1,10 @@
 import type { DateRange, OutputNode, Query, ValueCond } from "../model/types";
 import { expandOutput } from "../model/expand";
 
+/** CSV の1行が条件に合うかを返す。 */
 export type Predicate = (row: string[]) => boolean;
 
+/** compileQuery の結果。 */
 export type Compiled = {
   predicate: Predicate;
   /** 評価できずに無視した節。 */
@@ -11,7 +13,7 @@ export type Compiled = {
   missingColumns: string[];
 };
 
-/** logbook の BuiltinScriptFilter.THRESHOLD と同じ。 */
+/** logbook が数値の一致判定に使う許容差と同じ。 */
 export const THRESHOLD = 0.0001;
 
 /** logbook は空文字列を 0 として扱い、数値でない文字列は偽にする。 */
@@ -49,10 +51,14 @@ function valuePredicate(cond: ValueCond): (value: string) => boolean {
         const n = asNumber(value);
         if (n === null) return false;
         switch (cond.op) {
-          case "以上": return n > t - THRESHOLD;
-          case "より大きい": return n > t + THRESHOLD;
-          case "以下": return n < t + THRESHOLD;
-          case "より小さい": return n < t - THRESHOLD;
+          case "以上":
+            return n > t - THRESHOLD;
+          case "より大きい":
+            return n > t + THRESHOLD;
+          case "以下":
+            return n < t + THRESHOLD;
+          case "より小さい":
+            return n < t - THRESHOLD;
         }
       };
     }
@@ -66,7 +72,9 @@ function valuePredicate(cond: ValueCond): (value: string) => boolean {
 }
 
 function outputPredicate(
-  node: OutputNode, index: Map<string, number>, missing: Set<string>,
+  node: OutputNode,
+  index: Map<string, number>,
+  missing: Set<string>,
 ): Predicate {
   switch (node.kind) {
     case "column": {
@@ -111,11 +119,16 @@ function datePredicate(ranges: DateRange[], index: Map<string, number>): Predica
   return (row) => {
     const code = dateCodeOf(row[i] ?? "");
     if (code === null) return false;
-    return ranges.some((r) =>
-      (r.start === null || r.start <= code) && (r.end === null || code <= r.end));
+    return ranges.some(
+      (r) => (r.start === null || r.start <= code) && (r.end === null || code <= r.end),
+    );
   };
 }
 
+/**
+ * クエリを、CSV の行に当てられる述語へ変換する。
+ * 列の位置はヘッダで解決し、CSV に無い列を見る条件は落として ignored に載せる。
+ */
 export function compileQuery(q: Query, header: string[]): Compiled {
   const index = new Map(header.map((name, i) => [name, i]));
   const missing = new Set<string>();

@@ -2,8 +2,10 @@ import type { Battle, Query } from "../model/types";
 
 const KEY = "akakari-query-builder:draft";
 
+/** 前回の続きとして復元する内容。 */
 export type Draft = { battle: Battle; query: Query };
 
+/** 下書きを保存する。保存できない環境では黙って諦める。 */
 export function saveDraft(draft: Draft): void {
   try {
     localStorage.setItem(KEY, JSON.stringify(draft));
@@ -12,6 +14,7 @@ export function saveDraft(draft: Draft): void {
   }
 }
 
+/** 保存済みの下書き。無いか壊れていれば null。 */
 export function loadDraft(): Draft | null {
   try {
     const raw = localStorage.getItem(KEY);
@@ -22,6 +25,7 @@ export function loadDraft(): Draft | null {
   }
 }
 
+/** 下書きを消す。 */
 export function clearDraft(): void {
   try {
     localStorage.removeItem(KEY);

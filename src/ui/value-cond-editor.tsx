@@ -5,20 +5,28 @@ import { NamePicker } from "./name-picker";
 import type { NameTarget } from "./name-target";
 import { isEmptyValueCond } from "../model/validate";
 
+/** 画面で選べる条件の種類。 */
 export type CondOp = "一致" | "含む" | "正規表現" | CompareOp;
 
 const OPS: CondOp[] = ["一致", "含む", "正規表現", "以上", "より大きい", "以下", "より小さい"];
 
+/** 条件の値から、画面で選ばれている種類を求める。 */
 export function condOp(cond: ValueCond): CondOp {
   switch (cond.kind) {
-    case "eq": return "一致";
-    case "contains": return "含む";
-    case "regex": return "正規表現";
-    case "cmp": return cond.op;
-    case "group": return "一致";
+    case "eq":
+      return "一致";
+    case "contains":
+      return "含む";
+    case "regex":
+      return "正規表現";
+    case "cmp":
+      return cond.op;
+    case "group":
+      return "一致";
   }
 }
 
+/** 種類を切り替えたときの初期値。列の型が分かるときはそれに合わせる。 */
 export function defaultCond(op: CondOp, column: Column | undefined): ValueCond {
   if (op === "一致") return { kind: "eq", values: [] };
   if (op === "含む") return { kind: "contains", values: [""] };
@@ -110,6 +118,7 @@ function EqEditor(props: {
   );
 }
 
+/** 1つの列に対する条件を編集する行。 */
 export function ValueCondEditor(props: {
   column: Column | undefined;
   cond: ValueCond;
@@ -126,20 +135,31 @@ export function ValueCondEditor(props: {
       : "数値";
 
   return (
-    <div class={`flex flex-wrap items-center gap-1 ${
-      isEmptyValueCond(props.cond) ? "border border-red-400 bg-red-50 rounded px-1 py-0.5" : ""
-    }`}>
+    <div
+      class={`flex flex-wrap items-center gap-1 ${
+        isEmptyValueCond(props.cond) ? "border border-red-400 bg-red-50 rounded px-1 py-0.5" : ""
+      }`}
+    >
       <select
         class="border border-gray-300 rounded px-1"
         value={op}
-        onChange={(e) => props.onChange(defaultCond((e.target as HTMLSelectElement).value as CondOp, col))}
+        onChange={(e) =>
+          props.onChange(defaultCond((e.target as HTMLSelectElement).value as CondOp, col))
+        }
       >
-        {OPS.map((o) => <option key={o} value={o}>{o}</option>)}
+        {OPS.map((o) => (
+          <option key={o} value={o}>
+            {o}
+          </option>
+        ))}
       </select>
 
       {props.cond.kind === "eq" && (
-        <EqEditor column={col} values={props.cond.values}
-          onChange={(v) => props.onChange({ kind: "eq", values: v })} />
+        <EqEditor
+          column={col}
+          values={props.cond.values}
+          onChange={(v) => props.onChange({ kind: "eq", values: v })}
+        />
       )}
 
       {(props.cond.kind === "contains" || props.cond.kind === "regex") && (
@@ -148,10 +168,12 @@ export function ValueCondEditor(props: {
           class="border border-gray-300 rounded px-1 flex-1 min-w-[8rem]"
           placeholder={props.cond.kind === "regex" ? "正規表現(完全一致)" : "部分一致する文字列"}
           value={props.cond.values[0] ?? ""}
-          onInput={(e) => props.onChange({
-            kind: props.cond.kind === "regex" ? "regex" : "contains",
-            values: [(e.target as HTMLInputElement).value],
-          })}
+          onInput={(e) =>
+            props.onChange({
+              kind: props.cond.kind === "regex" ? "regex" : "contains",
+              values: [(e.target as HTMLInputElement).value],
+            })
+          }
         />
       )}
 
@@ -161,18 +183,25 @@ export function ValueCondEditor(props: {
           class="border border-gray-300 rounded px-1 w-24"
           placeholder={numPlaceholder}
           value={props.cond.value}
-          onInput={(e) => props.onChange({
-            kind: "cmp",
-            op: (props.cond as { op: CompareOp }).op,
-            value: Number((e.target as HTMLInputElement).value),
-          })}
+          onInput={(e) =>
+            props.onChange({
+              kind: "cmp",
+              op: (props.cond as { op: CompareOp }).op,
+              value: Number((e.target as HTMLInputElement).value),
+            })
+          }
         />
       )}
 
       {props.pickerTarget != null && props.cond.kind === "eq" && (
         <>
-          <button type="button" class="border border-emp-1 rounded px-2 py-0.5 hover:bg-emp-4"
-            onClick={() => setPickerOpen(true)}>選択…</button>
+          <button
+            type="button"
+            class="border border-emp-1 rounded px-2 py-0.5 hover:bg-emp-4"
+            onClick={() => setPickerOpen(true)}
+          >
+            選択…
+          </button>
           {pickerOpen && (
             <NamePicker
               target={props.pickerTarget}
@@ -185,10 +214,14 @@ export function ValueCondEditor(props: {
       )}
 
       {props.cond.kind === "regex" && (
-        <span class="text-xs text-gray-500">※完全一致。部分一致は <code>.*</code> で挟む</span>
+        <span class="text-xs text-gray-500">
+          ※完全一致。部分一致は <code>.*</code> で挟む
+        </span>
       )}
       {col?.pattern !== undefined && (
-        <span class="text-xs text-gray-500">形式: <code>{col.pattern}</code></span>
+        <span class="text-xs text-gray-500">
+          形式: <code>{col.pattern}</code>
+        </span>
       )}
     </div>
   );

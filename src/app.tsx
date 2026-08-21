@@ -20,6 +20,7 @@ const FEATURES = { itemSections: false };
 
 const REPO = "https://github.com/hedgehog-cp/akakari-query-builder";
 
+/** 画面全体。クエリの状態を持ち、下書きの保存と列カタログの取得もここで受け持つ。 */
 export function App() {
   const [restored] = useState(() => loadDraft());
   const [query, setQuery] = useState<Query>(restored?.query ?? freshQuery("akakari-hougeki"));
@@ -41,7 +42,9 @@ export function App() {
       setColumns(r.columns);
       setUsingFallback(r.usedFallback);
     });
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, [query.battle, reloadKey]);
 
   const setBattle = (b: Battle) => setQuery({ ...query, battle: b });
@@ -60,32 +63,55 @@ export function App() {
         {restoredNotice && (
           <p class="text-xs text-emp-1 bg-emp-4 rounded px-2 py-1 flex items-center gap-2">
             前回の続きを復元しました。
-            <button type="button" class="text-xs underline" onClick={() => setRestoredNotice(false)}>閉じる</button>
-            <button type="button" class="text-xs underline" onClick={() => {
-              clearDraft();
-              setQuery(freshQuery(query.battle));
-              setRestoredNotice(false);
-            }}>破棄</button>
+            <button
+              type="button"
+              class="text-xs underline"
+              onClick={() => setRestoredNotice(false)}
+            >
+              閉じる
+            </button>
+            <button
+              type="button"
+              class="text-xs underline"
+              onClick={() => {
+                clearDraft();
+                setQuery(freshQuery(query.battle));
+                setRestoredNotice(false);
+              }}
+            >
+              破棄
+            </button>
           </p>
         )}
         {usingFallback && (
           <p class="text-xs text-amber-700 bg-amber-50 border border-amber-300 rounded px-2 py-1 flex items-center gap-2">
             列カタログの取得に失敗したため、同梱データを使用しています(最新でない可能性があります)。
-            <button type="button" class="text-xs underline" onClick={() => setReloadKey((k) => k + 1)}>再試行</button>
+            <button
+              type="button"
+              class="text-xs underline"
+              onClick={() => setReloadKey((k) => k + 1)}
+            >
+              再試行
+            </button>
           </p>
         )}
         <Warnings validation={validateQuery(query, columns)} imports={importWarnings} />
       </div>
       {/* 入力の3枠と右の出力欄をひとつの外枠にまとめる。左右は同じグリッド行に
           並ぶので、既定の align-items:stretch により互いの高さが常に一致する。 */}
-      <CollapsibleSection title="クエリ"
+      <CollapsibleSection
+        title="クエリ"
         class="border border-gray-300 rounded bg-bg-main p-2"
-        bodyClass="grid gap-3 lg:grid-cols-2 min-w-0">
+        bodyClass="grid gap-3 lg:grid-cols-2 min-w-0"
+      >
         {/* 3枠目(出力)を 1fr にして余りを吸わせる。右の出力欄のほうが背が高い
             ときでも、出力枠が伸びて左右の下端が揃う。 */}
         <div class="grid gap-3 lg:grid-rows-[auto_auto_1fr] min-w-0">
           <BattleSelect value={query.battle} onChange={setBattle} />
-          <DateSection ranges={query.dateRanges} onChange={(r) => setQuery({ ...query, dateRanges: r })} />
+          <DateSection
+            ranges={query.dateRanges}
+            onChange={(r) => setQuery({ ...query, dateRanges: r })}
+          />
           <OutputSection
             node={query.output}
             columns={columns}
@@ -93,10 +119,16 @@ export function App() {
           />
           {FEATURES.itemSections && (
             <>
-              <ItemSection title="攻撃艦装備" node={query.attackerItems}
-                onChange={(n) => setQuery({ ...query, attackerItems: n })} />
-              <ItemSection title="防御艦装備" node={query.defenderItems}
-                onChange={(n) => setQuery({ ...query, defenderItems: n })} />
+              <ItemSection
+                title="攻撃艦装備"
+                node={query.attackerItems}
+                onChange={(n) => setQuery({ ...query, attackerItems: n })}
+              />
+              <ItemSection
+                title="防御艦装備"
+                node={query.defenderItems}
+                onChange={(n) => setQuery({ ...query, defenderItems: n })}
+              />
             </>
           )}
         </div>
@@ -104,7 +136,10 @@ export function App() {
           <ResultPane
             query={query}
             columns={columns}
-            onImport={(q, w) => { setQuery(q); setImportWarnings(w); }}
+            onImport={(q, w) => {
+              setQuery(q);
+              setImportWarnings(w);
+            }}
           />
         </div>
       </CollapsibleSection>
@@ -112,24 +147,43 @@ export function App() {
         <PreviewPane query={query} columns={columns} />
       </div>
       {/* 公開ページなので、データの扱いと権利表示への導線をここに置く。
-          読み込んだ CSV が外へ出ないことは、外向きの通信が
-          src/schema/fetch.ts の列カタログ取得1本しか無いことで担保している。 */}
+          読み込んだ CSV が外へ出ないことは、外向きの通信が列カタログの取得
+          1本しか無いことで担保している(テストで縛っている)。 */}
       <footer class="mt-2 pt-3 border-t border-gray-300 text-xs text-gray-500 grid gap-1">
         <p>
           読み込んだ CSV はブラウザの中だけで処理し、どこにも送信しません。
-          ブラウザに保存するのはクエリの下書きと保存したテンプレートだけで、CSV の中身は保存しません。
+          ブラウザに保存するのはクエリの下書きと保存したテンプレートだけで、CSV
+          の中身は保存しません。
         </p>
         <p class="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <a class="underline hover:text-gray-700" href={REPO} target="_blank" rel="noopener noreferrer">
+          <a
+            class="underline hover:text-gray-700"
+            href={REPO}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             GitHub
           </a>
-          <a class="underline hover:text-gray-700" href={`${REPO}/blob/main/LICENSE`}
-            target="_blank" rel="noopener noreferrer">MIT ライセンス</a>
-          <a class="underline hover:text-gray-700" href={`${REPO}/blob/main/NOTICE.md`}
-            target="_blank" rel="noopener noreferrer">第三者データの帰属表示</a>
+          <a
+            class="underline hover:text-gray-700"
+            href={`${REPO}/blob/main/LICENSE`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            MIT ライセンス
+          </a>
+          <a
+            class="underline hover:text-gray-700"
+            href={`${REPO}/blob/main/NOTICE.md`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            第三者データの帰属表示
+          </a>
         </p>
         <p>
-          非公式のツールです。「艦隊これくしょん -艦これ-」の権利は DMM GAMES / KADOKAWA GAMES に帰属します。
+          非公式のツールです。「艦隊これくしょん -艦これ-」の権利は DMM GAMES / KADOKAWA GAMES
+          に帰属します。
         </p>
       </footer>
     </main>

@@ -1,19 +1,29 @@
 import {
-  BATTLE_KEY, ITEM_ATTRS, emptyQuery,
-  type Battle, type CompareOp, type CountItemNode, type DateRange,
-  type ItemAttr, type ItemCond, type OutputNode, type Query, type ValueCond,
+  BATTLE_KEY,
+  ITEM_ATTRS,
+  emptyQuery,
+  type Battle,
+  type CompareOp,
+  type CountItemNode,
+  type DateRange,
+  type ItemAttr,
+  type ItemCond,
+  type OutputNode,
+  type Query,
+  type ValueCond,
 } from "../model/types";
 import { foldOutput } from "../model/fold";
 
+/** 読み飛ばした箇所の報せ。 */
 export type ParseWarning = { path: string; message: string };
+/** parseQuery の結果。 */
 export type ParseResult = { query: Query; warnings: ParseWarning[] };
 
 const COMPARE_OPS: CompareOp[] = ["以上", "より大きい", "以下", "より小さい"];
 const DATE_LEN = 14;
 
 type Obj = Record<string, unknown>;
-const isObj = (v: unknown): v is Obj =>
-  typeof v === "object" && v !== null && !Array.isArray(v);
+const isObj = (v: unknown): v is Obj => typeof v === "object" && v !== null && !Array.isArray(v);
 
 class Ctx {
   readonly warnings: ParseWarning[] = [];
@@ -28,7 +38,9 @@ function parseValueCond(v: unknown, path: string, ctx: Ctx): ValueCond | null {
     return { kind: "eq", values: [v] };
   }
   if (Array.isArray(v)) {
-    const vals = v.filter((x): x is string | number => typeof x === "string" || typeof x === "number");
+    const vals = v.filter(
+      (x): x is string | number => typeof x === "string" || typeof x === "number",
+    );
     if (vals.length !== v.length) ctx.warn(path, "配列に文字列・数値以外が混ざっています");
     if (vals.length === 0) return null;
     return { kind: "eq", values: vals };
@@ -41,8 +53,12 @@ function parseValueCond(v: unknown, path: string, ctx: Ctx): ValueCond | null {
   for (const [key, raw] of Object.entries(v)) {
     const p = `${path}.${key}`;
     if (key === "AND" || key === "OR") {
-      const items = Array.isArray(raw) ? raw : (ctx.warn(p, `${key} の値は配列であるべきです`), [raw]);
-      const kids = items.map((x) => parseValueCond(x, p, ctx)).filter((x): x is ValueCond => x !== null);
+      const items = Array.isArray(raw)
+        ? raw
+        : (ctx.warn(p, `${key} の値は配列であるべきです`), [raw]);
+      const kids = items
+        .map((x) => parseValueCond(x, p, ctx))
+        .filter((x): x is ValueCond => x !== null);
       if (kids.length > 0) parts.push({ kind: "group", op: key, children: kids });
     } else if (key === "NOT") {
       const kid = parseValueCond(raw, p, ctx);
@@ -76,7 +92,8 @@ function isVacuousOutput(n: OutputNode): boolean {
 function parseOutput(v: unknown, path: string, ctx: Ctx): OutputNode | null {
   if (v === null || v === undefined) return null;
   if (Array.isArray(v)) {
-    const kids = v.map((x, i) => parseOutput(x, `${path}[${i}]`, ctx))
+    const kids = v
+      .map((x, i) => parseOutput(x, `${path}[${i}]`, ctx))
       .filter((x): x is OutputNode => x !== null && !isVacuousOutput(x));
     return { kind: "group", op: "OR", children: kids };
   }
@@ -88,8 +105,11 @@ function parseOutput(v: unknown, path: string, ctx: Ctx): OutputNode | null {
   for (const [key, raw] of Object.entries(v)) {
     const p = `${path}.${key}`;
     if (key === "AND" || key === "OR") {
-      const items = Array.isArray(raw) ? raw : (ctx.warn(p, `${key} の値は配列であるべきです`), [raw]);
-      const kids = items.map((x, i) => parseOutput(x, `${p}[${i}]`, ctx))
+      const items = Array.isArray(raw)
+        ? raw
+        : (ctx.warn(p, `${key} の値は配列であるべきです`), [raw]);
+      const kids = items
+        .map((x, i) => parseOutput(x, `${p}[${i}]`, ctx))
         .filter((x): x is OutputNode => x !== null && !isVacuousOutput(x));
       parts.push({ kind: "group", op: key, children: kids });
     } else if (key === "NOT") {
@@ -111,7 +131,8 @@ function parseOutput(v: unknown, path: string, ctx: Ctx): OutputNode | null {
 function parseItemCond(v: unknown, path: string, ctx: Ctx): ItemCond | null {
   if (v === null || v === undefined) return { kind: "exists" };
   if (Array.isArray(v)) {
-    const kids = v.map((x, i) => parseItemCond(x, `${path}[${i}]`, ctx))
+    const kids = v
+      .map((x, i) => parseItemCond(x, `${path}[${i}]`, ctx))
       .filter((x): x is ItemCond => x !== null);
     return { kind: "group", op: "OR", children: kids };
   }
@@ -123,8 +144,11 @@ function parseItemCond(v: unknown, path: string, ctx: Ctx): ItemCond | null {
   for (const [key, raw] of Object.entries(v)) {
     const p = `${path}.${key}`;
     if (key === "AND" || key === "OR") {
-      const items = Array.isArray(raw) ? raw : (ctx.warn(p, `${key} の値は配列であるべきです`), [raw]);
-      const kids = items.map((x, i) => parseItemCond(x, `${p}[${i}]`, ctx))
+      const items = Array.isArray(raw)
+        ? raw
+        : (ctx.warn(p, `${key} の値は配列であるべきです`), [raw]);
+      const kids = items
+        .map((x, i) => parseItemCond(x, `${p}[${i}]`, ctx))
         .filter((x): x is ItemCond => x !== null);
       parts.push({ kind: "group", op: key, children: kids });
     } else if (key === "NOT") {
@@ -144,7 +168,8 @@ function parseItemCond(v: unknown, path: string, ctx: Ctx): ItemCond | null {
 function parseCountItem(v: unknown, path: string, ctx: Ctx): CountItemNode | null {
   if (v === null || v === undefined) return null;
   if (Array.isArray(v)) {
-    const kids = v.map((x, i) => parseCountItem(x, `${path}[${i}]`, ctx))
+    const kids = v
+      .map((x, i) => parseCountItem(x, `${path}[${i}]`, ctx))
       .filter((x): x is CountItemNode => x !== null);
     return kids.length === 0 ? null : { kind: "group", op: "OR", children: kids };
   }
@@ -156,8 +181,11 @@ function parseCountItem(v: unknown, path: string, ctx: Ctx): CountItemNode | nul
   for (const [key, raw] of Object.entries(v)) {
     const p = `${path}.${key}`;
     if (key === "AND" || key === "OR") {
-      const items = Array.isArray(raw) ? raw : (ctx.warn(p, `${key} の値は配列であるべきです`), [raw]);
-      const kids = items.map((x, i) => parseCountItem(x, `${p}[${i}]`, ctx))
+      const items = Array.isArray(raw)
+        ? raw
+        : (ctx.warn(p, `${key} の値は配列であるべきです`), [raw]);
+      const kids = items
+        .map((x, i) => parseCountItem(x, `${p}[${i}]`, ctx))
         .filter((x): x is CountItemNode => x !== null);
       if (kids.length > 0) parts.push({ kind: "group", op: key, children: kids });
     } else if (key === "NOT") {
@@ -207,6 +235,10 @@ function battleFromKey(key: unknown): Battle | null {
   return null;
 }
 
+/**
+ * JSON のテキストをクエリに読む。
+ * 構文が壊れていれば throw し、読めない節は捨てて警告に積む。
+ */
 export function parseQuery(text: string, knownColumns: string[]): ParseResult {
   const root: unknown = JSON.parse(text);
   const ctx = new Ctx(new Set(knownColumns));
@@ -217,7 +249,10 @@ export function parseQuery(text: string, knownColumns: string[]): ParseResult {
 
   const battle = battleFromKey(root.種別);
   if (battle === null) {
-    ctx.warn("$.種別", root.種別 === undefined ? "種別がありません" : `種別 ${String(root.種別)} は対象外です`);
+    ctx.warn(
+      "$.種別",
+      root.種別 === undefined ? "種別がありません" : `種別 ${String(root.種別)} は対象外です`,
+    );
   }
   const q = emptyQuery(battle ?? "akakari-hougeki");
 

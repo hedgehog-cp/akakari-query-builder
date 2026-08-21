@@ -12,6 +12,7 @@ function parseQuantity(v: string): DisplayItemQuantity {
   return v === "all" ? { kind: "all" } : { kind: "any" };
 }
 
+/** 表示装備の条件(いずれか / すべて)を編集する行。 */
 export function DisplayItemNodeEditor(props: {
   node: DisplayItemNode;
   columns: Column[];
@@ -25,10 +26,16 @@ export function DisplayItemNodeEditor(props: {
     <div class="border-l-2 border-emp-1 pl-2 ml-1 my-1">
       <div class="flex flex-wrap items-center gap-1 py-0.5">
         <span class="font-bold text-xs">表示装備条件</span>
-        <select class="border border-gray-300 rounded px-1" value={quantityValue(node.quantity)}
-          onChange={(e) => props.onChange({
-            ...node, quantity: parseQuantity((e.target as HTMLSelectElement).value),
-          })}>
+        <select
+          class="border border-gray-300 rounded px-1"
+          value={quantityValue(node.quantity)}
+          onChange={(e) =>
+            props.onChange({
+              ...node,
+              quantity: parseQuantity((e.target as HTMLSelectElement).value),
+            })
+          }
+        >
           <option value="any">いずれかが</option>
           <option value="all">すべてが</option>
         </select>
@@ -40,8 +47,13 @@ export function DisplayItemNodeEditor(props: {
           onChange={(cond) => props.onChange({ ...node, cond })}
         />
         {props.onRemove !== undefined && (
-          <button type="button" class="text-gray-500 hover:text-red-600 px-1 ml-auto"
-            onClick={props.onRemove}>✕</button>
+          <button
+            type="button"
+            class="text-gray-500 hover:text-red-600 px-1 ml-auto"
+            onClick={props.onRemove}
+          >
+            ✕
+          </button>
         )}
       </div>
       <p class="text-xs text-gray-500">
