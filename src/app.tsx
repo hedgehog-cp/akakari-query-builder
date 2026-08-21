@@ -18,6 +18,8 @@ import { master } from "./master/load";
 /** 一時的に画面から隠す機能。復活させる場合はここを true に戻すだけでよい。 */
 const FEATURES = { itemSections: false };
 
+const REPO = "https://github.com/hedgehog-cp/akakari-query-builder";
+
 export function App() {
   const [restored] = useState(() => loadDraft());
   const [query, setQuery] = useState<Query>(restored?.query ?? freshQuery("akakari-hougeki"));
@@ -47,7 +49,7 @@ export function App() {
   return (
     <main class="max-w-[1400px] mx-auto p-4 grid gap-3">
       <header class="flex items-center gap-2">
-        <img src="./logo.png" alt="kcverify" class="h-10 w-auto shrink-0" />
+        <img src="./logo.png" alt="" class="h-10 w-auto shrink-0" />
         <span class="text-lg font-bold text-gray-800">赤仮クエリビルダー</span>
       </header>
       <TemplateDrawer battle={query.battle} query={query} onLoadTemplate={(q) => setQuery(q)} />
@@ -109,6 +111,27 @@ export function App() {
       <div class="min-w-0">
         <PreviewPane query={query} columns={columns} />
       </div>
+      {/* 公開ページなので、データの扱いと権利表示への導線をここに置く。
+          読み込んだ CSV が外へ出ないことは、外向きの通信が
+          src/schema/fetch.ts の列カタログ取得1本しか無いことで担保している。 */}
+      <footer class="mt-2 pt-3 border-t border-gray-300 text-xs text-gray-500 grid gap-1">
+        <p>
+          読み込んだ CSV はブラウザの中だけで処理し、どこにも送信しません。
+          ブラウザに保存するのはクエリの下書きと保存したテンプレートだけで、CSV の中身は保存しません。
+        </p>
+        <p class="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <a class="underline hover:text-gray-700" href={REPO} target="_blank" rel="noopener noreferrer">
+            GitHub
+          </a>
+          <a class="underline hover:text-gray-700" href={`${REPO}/blob/main/LICENSE`}
+            target="_blank" rel="noopener noreferrer">MIT ライセンス</a>
+          <a class="underline hover:text-gray-700" href={`${REPO}/blob/main/NOTICE.md`}
+            target="_blank" rel="noopener noreferrer">第三者データの帰属表示</a>
+        </p>
+        <p>
+          非公式のツールです。「艦隊これくしょん -艦これ-」の権利は DMM GAMES / KADOKAWA GAMES に帰属します。
+        </p>
+      </footer>
     </main>
   );
 }
