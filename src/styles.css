@@ -1,6 +1,17 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/*
+  画面の配色。Tailwind 4 では設定ファイルではなく CSS の @theme に書く。
+  --color-<名前> を足すと bg-<名前> や text-<名前> などが使えるようになる。
+*/
+@theme {
+  --color-bg-main: #f8faf8;
+  --color-bg-panel: #ffffff;
+  --color-emp-1: #b4a7d6;
+  --color-emp-2: #b7e1cd;
+  --color-emp-3: #ffd966;
+  --color-emp-4: #fff2cc;
+}
 
 /*
   フォントの統一。
