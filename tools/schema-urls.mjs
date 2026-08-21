@@ -1,16 +1,16 @@
-// 列カタログの取得先。同梱物の更新(update-schema-fallback.mjs)と
-// 死活確認(check-schema-urls.mjs)の唯一の定義元。
-//
-// 世代IDは src/model/types.ts の BATTLE_SCHEMA と同じでなければならない。
-// TS からは import できないので、一致は src/schema/fetch.test.ts が縛る。
+// 列カタログの取得先。画面と同じ定義元(generations.json)を読むので、
+// 世代を移すときに直すのはあちらだけでよい。
 
-export const BASE = "https://hedgehog-cp.github.io/akakari-schema";
+import generations from "../src/schema/generations.json" with { type: "json" };
 
-export const SCHEMA_IDS = [
-  "akakari-hougeki-2024-07-20",
-  "akakari-raigeki-2024-07-20",
-  "akakari-midnight-2024-07-20",
-];
+/** 列カタログの配信元。 */
+export const BASE = generations.base;
+
+/** 戦闘種別 → 世代ID。同梱データのファイル名は戦闘種別のほうを使う。 */
+export const SCHEMA_BY_BATTLE = generations.ids;
+
+/** 現行世代の世代ID一覧。 */
+export const SCHEMA_IDS = Object.values(generations.ids);
 
 /** akakari-schema が安定URLで配る Table Schema 本体。 */
 export function schemaUrl(id) {

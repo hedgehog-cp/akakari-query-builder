@@ -1,0 +1,8 @@
+{
+  "base": "https://hedgehog-cp.github.io/akakari-schema",
+  "ids": {
+    "akakari-hougeki": "akakari-hougeki-2024-07-20",
+    "akakari-raigeki": "akakari-raigeki-2024-07-20",
+    "akakari-midnight": "akakari-midnight-2024-07-20"
+  }
+}

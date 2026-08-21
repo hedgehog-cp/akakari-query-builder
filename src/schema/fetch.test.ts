@@ -17,10 +17,9 @@ describe("schemaUrl", () => {
     );
   });
 
-  // 同梱物の更新(tools/update-schema-fallback.mjs)と死活確認
-  // (tools/check-schema-urls.mjs)は tools/schema-urls.mjs を定義元にしている。
-  // TS からは import できないので、ここで両者が同じ世代・同じURLを指すことを縛る。
-  it("tools/schema-urls.mjs と同じ世代・同じURLを指す", () => {
+  // 同梱物の更新と死活確認を担うスクリプトは、画面と同じ generations.json を
+  // 読んでいる。読み方まで一致していることをここで縛る。
+  it("ツール側と同じ世代・同じURLを指す", () => {
     expect([...SCHEMA_IDS].sort()).toEqual(Object.values(BATTLE_SCHEMA).sort());
     for (const battle of Object.keys(BATTLE_SCHEMA) as (keyof typeof BATTLE_SCHEMA)[]) {
       expect(schemaUrl(battle)).toBe(toolSchemaUrl(BATTLE_SCHEMA[battle]));
@@ -30,10 +29,13 @@ describe("schemaUrl", () => {
 
 describe("fetchCatalog", () => {
   it("取得に成功すればネットワークの結果を使う", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => ({
-      ok: true,
-      json: async () => ({ fields: [{ name: "テスト列", type: "string" }] }),
-    })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({ fields: [{ name: "テスト列", type: "string" }] }),
+      })),
+    );
     const r = await fetchCatalog("akakari-hougeki");
     expect(r.usedFallback).toBe(false);
     expect(r.columns.map((c) => c.name)).toEqual(["テスト列"]);
@@ -41,7 +43,10 @@ describe("fetchCatalog", () => {
   });
 
   it("取得に失敗すれば同梱データにフォールバックする", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, status: 500 })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: false, status: 500 })),
+    );
     const r = await fetchCatalog("akakari-raigeki");
     expect(r.usedFallback).toBe(true);
     expect(r.columns.length).toBeGreaterThan(0);

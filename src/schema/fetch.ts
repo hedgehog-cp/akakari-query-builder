@@ -1,8 +1,9 @@
 import { BATTLE_SCHEMA, type Battle } from "../model/types";
 import { toCatalog, type Column } from "./catalog";
-import fallbackHougeki from "./fallback/akakari-hougeki-2024-07-20.json";
-import fallbackRaigeki from "./fallback/akakari-raigeki-2024-07-20.json";
-import fallbackMidnight from "./fallback/akakari-midnight-2024-07-20.json";
+import generations from "./generations.json";
+import fallbackHougeki from "./fallback/akakari-hougeki.json";
+import fallbackRaigeki from "./fallback/akakari-raigeki.json";
+import fallbackMidnight from "./fallback/akakari-midnight.json";
 
 export type { Column };
 
@@ -11,12 +12,11 @@ export type { Column };
  *
  *   {BASE}/tableschema/{世代ID}.schema.json
  *
- * 以前は画面用に変換された `{BASE}/data/{世代ID}.json` を見ていたが、向こうが
- * その変換の段(publish.py)ごと廃止したため404になり、気づかないまま同梱データで
- * 動き続けていた。取得先が生きているかは deploy.yml の死活確認で見る。
+ * 以前は画面用に変換された別のJSONを見ていたが、向こうがその変換ごと廃止して
+ * 404になり、気づかないまま同梱データで動き続けていた。取得先が生きているかは
+ * CI の死活確認で見る。
  */
-const BASE: string =
-  import.meta.env.VITE_SCHEMA_BASE ?? "https://hedgehog-cp.github.io/akakari-schema";
+const BASE: string = import.meta.env.VITE_SCHEMA_BASE ?? generations.base;
 
 /** ネットワーク取得に失敗したときの同梱データ。`npm run update:schema-fallback` で更新する。 */
 const FALLBACK: Record<Battle, unknown> = {
@@ -27,11 +27,18 @@ const FALLBACK: Record<Battle, unknown> = {
 
 const cache = new Map<Battle, Column[]>();
 
+/** その戦闘種別の列カタログのURL。 */
 export function schemaUrl(battle: Battle): string {
   return `${BASE}/tableschema/${BATTLE_SCHEMA[battle]}.schema.json`;
 }
 
-export async function fetchCatalog(battle: Battle): Promise<{ columns: Column[]; usedFallback: boolean }> {
+/**
+ * 列カタログを取り、画面が使う形にして返す。一度取れば戦闘種別ごとに覚える。
+ * 取得に失敗したときは同梱データで代替し、そのことを usedFallback で知らせる。
+ */
+export async function fetchCatalog(
+  battle: Battle,
+): Promise<{ columns: Column[]; usedFallback: boolean }> {
   const hit = cache.get(battle);
   if (hit !== undefined) return { columns: hit, usedFallback: false };
   const url = schemaUrl(battle);
