@@ -8,7 +8,7 @@ import { SectionToggle } from "./collapsible";
 
 type State =
   | { kind: "idle" }
-  | { kind: "running"; scanned: number; matched: number }
+  | { kind: "running"; scanned: number; matched: number; /** 読み終えたバイト数。進捗の分子。 */ bytes: number }
   | { kind: "mismatch"; missing: string[]; extra: string[] }
   | {
       kind: "done";
@@ -83,10 +83,10 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
     workerRef.current = worker;
     setPage(0);
     clearSelection();
-    setState({ kind: "running", scanned: 0, matched: 0 });
+    setState({ kind: "running", scanned: 0, matched: 0, bytes: 0 });
     worker.onmessage = (e: MessageEvent<PreviewMessage>) => {
       const m = e.data;
-      if (m.type === "progress") setState({ kind: "running", scanned: m.scanned, matched: m.matched });
+      if (m.type === "progress") setState({ kind: "running", scanned: m.scanned, matched: m.matched, bytes: m.bytes });
       else if (m.type === "header-mismatch") setState({ kind: "mismatch", missing: m.missing, extra: m.extra });
       else if (m.type === "done") setState({ kind: "done", ...m });
       else setState({ kind: "error", message: m.message });
@@ -245,6 +245,12 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
 
   const suffix = selected.size > 0 ? `(選択 ${selected.size} 行)` : "";
 
+  /** 走査の進捗(%)。ファイルの大きさが分からないときは帯も割合も出さない。 */
+  const percent =
+    state.kind === "running" && file !== null && file.size > 0
+      ? Math.min(100, Math.round((state.bytes / file.size) * 100))
+      : null;
+
   return (
     <>
       {copied && (
@@ -316,7 +322,18 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
           )}
         </div>
         {state.kind === "running" && (
-          <p class="text-xs">合致 {state.matched.toLocaleString()} 行 / 走査 {state.scanned.toLocaleString()} 行…</p>
+          <div class="grid gap-1">
+            <p class="text-xs">
+              合致 {state.matched.toLocaleString()} 行 / 走査 {state.scanned.toLocaleString()} 行…
+              {percent !== null && ` (${percent}%)`}
+            </p>
+            {/* 分母はファイルのバイト数。行数は最後まで読まないと分からないため。 */}
+            {percent !== null && (
+              <div class="h-1.5 rounded bg-gray-200 overflow-hidden">
+                <div class="h-full bg-emp-1 transition-[width] duration-100" style={{ width: `${percent}%` }} />
+              </div>
+            )}
+          </div>
         )}
 
         {state.kind === "mismatch" && (

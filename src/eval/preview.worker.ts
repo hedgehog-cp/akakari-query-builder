@@ -6,7 +6,7 @@ import { CsvParser, formatCsvRow } from "./csv";
 export type PreviewRequest = { query: Query; header: string[]; file: File };
 
 export type PreviewMessage =
-  | { type: "progress"; scanned: number; matched: number }
+  | { type: "progress"; scanned: number; matched: number; /** 読み終えたバイト数(File.size に対する進捗) */ bytes: number }
   | { type: "header-mismatch"; missing: string[]; extra: string[] }
   | {
       type: "done";
@@ -29,7 +29,12 @@ export type PreviewMessage =
  * 155列×数十万行を配列のまま持つとメモリを食い潰すので上限を設ける。
  */
 const PREVIEW_ROWS = 10000;
-const PROGRESS_EVERY = 20000;
+
+/**
+ * 進捗を送る間隔。行数を基準にすると、行の長さ次第で更新が飛び飛びになったり
+ * 逆に送りすぎたりする。時間で区切れば、どんなCSVでも毎秒10回に収まる。
+ */
+const PROGRESS_INTERVAL_MS = 100;
 
 function post(msg: PreviewMessage): void {
   (self as unknown as DedicatedWorkerGlobalScope).postMessage(msg);
@@ -39,7 +44,12 @@ self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
   const { query, header, file } = e.data;
   try {
     const parser = new CsvParser();
-    const reader = file.stream().pipeThrough(new TextDecoderStream("utf-8")).getReader();
+    // TextDecoderStream を挟むと文字数しか分からず、File.size(バイト)と比べられない。
+    // 進捗バーの分母を実バイト数にするため、生のチャンクを受けて自前で復号する。
+    const reader = file.stream().getReader();
+    const decoder = new TextDecoder("utf-8");
+    let bytes = 0;
+    let lastPost = 0;
 
     let csvHeader: string[] | null = null;
     // TS がクロージャ内の再代入を読み取り側で never に絞り込んでしまうため、
@@ -72,7 +82,6 @@ self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
           if (keptRows.length < PREVIEW_ROWS) keptRows.push(row);
           out.push(formatCsvRow(row));
         }
-        if (scanned % PROGRESS_EVERY === 0) post({ type: "progress", scanned, matched });
       }
       return true;
     };
@@ -80,9 +89,22 @@ self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
-      if (!handle(parser.push(value))) return;
+      bytes += value.byteLength;
+      // stream: true でチャンク境界にまたがる多バイト文字を持ち越す
+      if (!handle(parser.push(decoder.decode(value, { stream: true })))) return;
+      const now = performance.now();
+      if (now - lastPost >= PROGRESS_INTERVAL_MS) {
+        lastPost = now;
+        post({ type: "progress", scanned, matched, bytes });
+      }
     }
+    // 復号器に残った持ち越しを吐き出させる(不完全なバイト列は置換文字になる)
+    const tail = decoder.decode();
+    if (tail !== "" && !handle(parser.push(tail))) return;
     if (!handle(parser.flush())) return;
+    // 読み終えた時点で 100% にしておく。この後の csv 組み立て(数十MBの join)にも
+    // 時間がかかるため、そこで帯が途中の値のまま止まって見えないようにする。
+    post({ type: "progress", scanned, matched, bytes });
 
     // 元のCSVと同じ形式で書き出す: UTF-8 BOM付き・CRLF・ヘッダ行あり
     const csv = "﻿" + out.join("\r\n") + "\r\n";
