@@ -9,6 +9,27 @@ export type GroupOp = "AND" | "OR" | "NOT";
 /** ヘッダに並べる追加ボタン1つぶん。 */
 export type AddRuleAction = { label: string; onClick: () => void };
 
+/**
+ * グループをまたいだドラッグ&ドロップの設定。木のルートが用意して全段に配る。
+ *
+ * 行き来できるのは同じ group 名を持つリスト同士だけ。木ごとに別の名前にしないと、
+ * 型の違う別の木(装備条件など)へ落とせてしまう。
+ */
+export type RuleDnd = {
+  group: string;
+  /** この RuleGroup の子リストがルートから見てどこにあるか。 */
+  path: number[];
+  onMove: (from: number[], fromIndex: number, to: number[], toIndex: number) => void;
+};
+
+/** data 属性に入れたパスを読み戻す。ルートの子リストは空文字。 */
+function parsePath(raw: string | undefined): number[] | null {
+  if (raw === undefined) return null;
+  if (raw === "") return [];
+  const parts = raw.split(".").map(Number);
+  return parts.every(Number.isInteger) ? parts : null;
+}
+
 const OP_LABEL: Record<GroupOp, string> = {
   AND: "AND",
   OR: "OR",
@@ -34,8 +55,14 @@ export function RuleGroup<T>(props: {
   children: T[];
   onOpChange?: (op: GroupOp) => void;
   onChildrenChange: (children: T[]) => void;
-  /** 1行の中身の描画。子がグループならここで再帰的に RuleGroup を呼び出す。 */
-  renderChild: (child: T, onChange: (c: T) => void, onRemove: () => void) => ComponentChildren;
+  /** 1行の中身の描画。子がグループならここで再帰的に RuleGroup を呼び出す。
+   * index は入れ子のグループに配るパスを組み立てるために渡している。 */
+  renderChild: (
+    child: T,
+    onChange: (c: T) => void,
+    onRemove: () => void,
+    index: number,
+  ) => ComponentChildren;
   addRuleActions: AddRuleAction[];
   onAddGroup?: () => void;
   onRemove?: () => void;
@@ -52,6 +79,8 @@ export function RuleGroup<T>(props: {
   /** 子が空のときの案内文。null で非表示(既定の空状態が正常な場合に使う)。
    * 省略時は既定文言を表示する。 */
   emptyMessage?: string | null;
+  /** グループをまたいだ移動を許すときに渡す。省略時はこのリスト内の並べ替えだけ。 */
+  dnd?: RuleDnd;
   /** ヘッダ行に追加ボタン群の後・空メッセージや✕ボタンの前に差し込む内容。
    * 装備条件の側/数量セレクトなど、RuleGroup自身が知らない専用コントロールを
    * ヘッダに混ぜ込むために使う。 */
@@ -61,21 +90,58 @@ export function RuleGroup<T>(props: {
   const listRef = useRef<HTMLDivElement>(null);
 
   // SortableJS の onEnd はマウント時に1度だけ設定するため、
-  // 常に最新の children / onChildrenChange を参照できるよう ref に逃がす。
-  const stateRef = useRef({ children: props.children, onChildrenChange: props.onChildrenChange });
-  stateRef.current = { children: props.children, onChildrenChange: props.onChildrenChange };
+  // 常に最新の children / onChildrenChange / dnd を参照できるよう ref に逃がす。
+  // パスは並べ替えで変わりうるので ref ではなくリストの data 属性から読む。
+  const stateRef = useRef({
+    children: props.children,
+    onChildrenChange: props.onChildrenChange,
+    dnd: props.dnd,
+  });
+  stateRef.current = {
+    children: props.children,
+    onChildrenChange: props.onChildrenChange,
+    dnd: props.dnd,
+  };
 
   useEffect(() => {
     const el = listRef.current;
     if (el === null) return;
+    const dndGroup = props.dnd?.group;
     const sortable = Sortable.create(el, {
       handle: ".rule-drag-handle",
       animation: 150,
+      // 入れ子のリストへ落とすときの判定。既定値のままだと、内側のリストの上に
+      // 来てもなかなか受け取ってくれない。
+      swapThreshold: 0.65,
+      fallbackOnBody: true,
+      group:
+        dndGroup === undefined
+          ? undefined
+          : {
+              name: dndGroup,
+              pull: true,
+              // NOT は子を1つしか持てないので、埋まっているグループには入れさせない。
+              put: (to) => (to.el as HTMLElement).dataset.ruleFull !== "1",
+            },
       onEnd: (evt) => {
-        if (evt.oldIndex === undefined || evt.newIndex === undefined) return;
-        if (evt.oldIndex === evt.newIndex) return;
-        const { children, onChildrenChange } = stateRef.current;
-        onChildrenChange(reorder(children, evt.oldIndex, evt.newIndex));
+        const { from, to, oldIndex, newIndex } = evt;
+        if (oldIndex === undefined || newIndex === undefined) return;
+        if (from === to) {
+          if (oldIndex === newIndex) return;
+          const { children, onChildrenChange } = stateRef.current;
+          onChildrenChange(reorder(children, oldIndex, newIndex));
+          return;
+        }
+        const dnd = stateRef.current.dnd;
+        if (dnd === undefined) return;
+        // SortableJS が動かした DOM をいったん元に戻してから状態を更新する。
+        // Preact は自分が置いた DOM しか把握していないため、他所のリストへ
+        // 移されたままにすると行が二重に残ったり消えたりする。
+        from.insertBefore(evt.item, from.children[oldIndex] ?? null);
+        const fromPath = parsePath((from as HTMLElement).dataset.rulePath);
+        const toPath = parsePath((to as HTMLElement).dataset.rulePath);
+        if (fromPath === null || toPath === null) return;
+        dnd.onMove(fromPath, oldIndex, toPath, newIndex);
       },
     });
     return () => sortable.destroy();
@@ -158,7 +224,20 @@ export function RuleGroup<T>(props: {
           </button>
         )}
       </div>
-      <div ref={listRef} class={collapsed ? "hidden" : ""}>
+      {/* 空のグループは高さが無くなり、他所からドラッグしてきた行を受け取れない。
+          D&D を許している間だけ、落とし先として分かる高さの枠を残す。 */}
+      <div
+        ref={listRef}
+        class={
+          collapsed
+            ? "hidden"
+            : props.dnd !== undefined && props.children.length === 0
+              ? "min-h-6 border border-dashed border-gray-300 rounded"
+              : ""
+        }
+        data-rule-path={props.dnd === undefined ? undefined : props.dnd.path.join(".")}
+        data-rule-full={isNot && props.children.length > 0 ? "1" : undefined}
+      >
         {props.children.map((c, i) => (
           <div key={props.keyOf ? props.keyOf(c, i) : i} class="flex items-start gap-1">
             <span
@@ -172,6 +251,7 @@ export function RuleGroup<T>(props: {
                 c,
                 (n) => setChild(i, n),
                 () => removeChild(i),
+                i,
               )}
             </div>
           </div>
