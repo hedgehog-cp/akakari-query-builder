@@ -1,6 +1,7 @@
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { freshQuery, type Battle, type Query } from "./model/types";
 import { validateQuery } from "./model/validate";
+import { initHistory, pushHistory, redoHistory, undoHistory } from "./model/history";
 import { fetchCatalog, type Column } from "./schema/fetch";
 import { BattleSelect } from "./ui/battle-select";
 import { DateSection } from "./ui/date-section";
@@ -20,10 +21,50 @@ const FEATURES = { itemSections: false };
 
 const REPO = "https://github.com/hedgehog-cp/akakari-query-builder";
 
+/** この時間内に続いた変更は1回の取り消しにまとめる。 */
+const COALESCE_MS = 600;
+
 /** 画面全体。クエリの状態を持ち、下書きの保存と列カタログの取得もここで受け持つ。 */
 export function App() {
   const [restored] = useState(() => loadDraft());
-  const [query, setQuery] = useState<Query>(restored?.query ?? freshQuery("akakari-hougeki"));
+  const [history, setHistory] = useState(() =>
+    initHistory<Query>(restored?.query ?? freshQuery("akakari-hougeki")),
+  );
+  const query = history.present;
+  const lastEditAt = useRef(0);
+
+  /**
+   * クエリを差し替える。短い間隔で続いた変更は1つの取り消し単位にまとめる。
+   * 文字入力は1文字ごとに呼ばれるので、まとめないと Ctrl+Z が1文字ずつしか戻らない。
+   */
+  const setQuery = (next: Query) => {
+    const now = Date.now();
+    const coalesce = now - lastEditAt.current < COALESCE_MS;
+    lastEditAt.current = now;
+    setHistory((h) => pushHistory(h, next, coalesce));
+  };
+
+  // Ctrl+Z / Ctrl+Shift+Z(Ctrl+Y)で組み立て内容を戻す・やり直す。
+  // 文字入力欄にカーソルがあるときはブラウザ既定の取り消しに任せる。そちらの
+  // 取り消しも input イベントを起こすので、結果としてクエリにも反映される。
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+      const key = e.key.toLowerCase();
+      if (key !== "z" && key !== "y") return;
+      const el = document.activeElement;
+      const tag = el?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || (el as HTMLElement | null)?.isContentEditable) {
+        return;
+      }
+      e.preventDefault();
+      // 取り消しの直後の変更は必ず新しい履歴にする(まとめてしまうと戻せなくなる)。
+      lastEditAt.current = 0;
+      setHistory(key === "y" || e.shiftKey ? redoHistory : undoHistory);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
   const [restoredNotice, setRestoredNotice] = useState(restored !== null);
   const [columns, setColumns] = useState<Column[]>([]);
   const [usingFallback, setUsingFallback] = useState(false);
