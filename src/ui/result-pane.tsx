@@ -6,7 +6,14 @@ import { parseQuery, type ParseWarning } from "../parse/json";
 import type { Column } from "../schema/catalog";
 import { JsonHighlight } from "./json-highlight";
 
-/** 組み立てた結果を出す枠。テキストを直接編集すると、その内容をクエリに取り込む。 */
+/**
+ * 組み立てた結果を出す枠。テキストを直接編集すると、その内容をクエリに取り込む。
+ *
+ * 構文強調は「色付きの pre の上に文字色を透明にした textarea を重ねる」よくある手だが、
+ * 編集中は選択の反転色が下の pre を覆って読めなくなるうえ、折り返しが少しでもずれると
+ * 見えている文字と実際の文字がずれてクリック位置も合わなくなる。そのためフォーカス中は
+ * 重ね合わせをやめ、普通に色の付いた textarea として編集させる。
+ */
 export function ResultPane(props: {
   query: Query;
   columns: Column[];
@@ -21,11 +28,20 @@ export function ResultPane(props: {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const preRef = useRef<HTMLPreElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [preSize, setPreSize] = useState<{ width: number; height: number } | null>(null);
+  const [preSize, setPreSize] = useState<{
+    width: number;
+    height: number;
+    gutter: number;
+  } | null>(null);
   const [resizedHeight, setResizedHeight] = useState<string | null>(null);
 
   // textarea をネイティブのリサイズハンドルで手動拡大しても、構文強調の黒背景(pre)が
   // CSSクラスだけでは追従しないため、実測してインラインstyleで直接反映する。
+  //
+  // 同時に、pre と textarea は内容の幅が1文字でもずれると折り返し位置が食い違い、
+  // 色付きの文字と実際の文字が段々ずれて読めなくなる。textarea はスクロールバーの
+  // ぶんだけ内容が狭いので、その幅を測って pre の右padding に足して揃える。
+  // (textarea 側は scrollbar-gutter: stable で幅を常に一定にしてある)
   useEffect(() => {
     const el = textareaRef.current;
     if (el === null) return;
@@ -34,7 +50,14 @@ export function ResultPane(props: {
       // border-box(Tailwind の既定)で height/width を直接指定するには使えない。
       // getBoundingClientRect() の border-box サイズをそのまま使う。
       const rect = el.getBoundingClientRect();
-      setPreSize({ width: rect.width, height: rect.height });
+      const style = getComputedStyle(el);
+      // offsetWidth(枠込み) - clientWidth(枠とスクロールバーを除く) - 枠 = スクロールバー幅。
+      const gutter =
+        el.offsetWidth -
+        el.clientWidth -
+        parseFloat(style.borderLeftWidth) -
+        parseFloat(style.borderRightWidth);
+      setPreSize({ width: rect.width, height: rect.height, gutter: Math.max(0, gutter) });
       // 普段の高さは左の入力欄と揃うようグリッド側(flex-1)が決めるので、
       // textarea 自身は h-full で追従するだけ。ただし手動リサイズしたときだけは
       // インラインの height が付くため、それを枠の下限として親に伝え、
@@ -233,10 +256,17 @@ export function ResultPane(props: {
             <pre
               ref={preRef}
               aria-hidden="true"
-              class="pointer-events-none absolute inset-0 m-0 text-xs bg-[#1e1e1e] rounded p-2 overflow-hidden h-full w-full font-mono whitespace-pre-wrap break-words border border-transparent"
+              class={`pointer-events-none absolute inset-0 m-0 text-xs bg-[#1e1e1e] rounded p-2 overflow-hidden h-full w-full font-mono whitespace-pre-wrap break-words border border-transparent ${
+                focused ? "invisible" : ""
+              }`}
               style={
                 preSize !== null
-                  ? { height: `${preSize.height}px`, width: `${preSize.width}px` }
+                  ? {
+                      height: `${preSize.height}px`,
+                      width: `${preSize.width}px`,
+                      // p-2 の 0.5rem にスクロールバーぶんを足す。
+                      paddingRight: `calc(0.5rem + ${preSize.gutter}px)`,
+                    }
                   : undefined
               }
             >
@@ -244,7 +274,9 @@ export function ResultPane(props: {
             </pre>
             <textarea
               ref={textareaRef}
-              class="relative text-xs bg-transparent border border-gray-200 rounded p-2 overflow-auto h-full w-full font-mono whitespace-pre-wrap break-words text-transparent caret-gray-100"
+              class={`relative text-xs border border-gray-200 rounded p-2 overflow-auto [scrollbar-gutter:stable] h-full w-full font-mono whitespace-pre-wrap break-words caret-gray-100 ${
+                focused ? "bg-[#1e1e1e] text-gray-100" : "bg-transparent text-transparent"
+              }`}
               value={draftText}
               onFocus={() => setFocused(true)}
               onBlur={() => {
