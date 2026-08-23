@@ -4,8 +4,9 @@ import { ValueCondEditor, defaultCond } from "./value-cond-editor";
 import { SlotNodeEditor } from "./slot-node";
 import { DisplayItemNodeEditor } from "./display-item-node";
 import { nameTargetOf } from "./name-target";
-import { CellInput, MapAreaSelect } from "./map-input";
-import { RuleGroup } from "./rule-group";
+import { CellInput, MapAreaSelect, parseCells } from "./map-input";
+import { RuleGroup, type RuleDnd } from "./rule-group";
+import { moveNode, type TreeAdapter } from "./tree-move";
 
 function ColumnSelect(props: {
   columns: Column[];
@@ -73,12 +74,33 @@ function keyOf(node: OutputNode): number {
   return key;
 }
 
+/**
+ * 木をまたいだ移動でグループを作り直すときに使う。行キーを引き継ぐのは
+ * onChildEdit と同じ理由で、移動していないグループの行が作り直されて
+ * 折りたたみ状態やドラッグの下準備が飛ぶのを防ぐため。
+ */
+const outputAdapter: TreeAdapter<OutputNode> = {
+  childrenOf: (n) => (n.kind === "group" ? n.children : null),
+  withChildren: (n, children) => {
+    if (n.kind !== "group") return n;
+    const next: OutputNode = { ...n, children };
+    const k = nodeKeys.get(n);
+    if (k !== undefined) nodeKeys.set(next, k);
+    return next;
+  },
+};
+
+/** グループをまたいだ D&D の名前。出力節の木は画面に1つなので固定でよい。 */
+const DND_GROUP = "output-node";
+
 function renderNode(
   node: OutputNode,
   columns: Column[],
   depth: number,
   onChange: (n: OutputNode) => void,
   onRemove: (() => void) | undefined,
+  dnd: Omit<RuleDnd, "path"> | undefined,
+  path: number[],
 ) {
   if (node.kind === "column") {
     const col = columns.find((c) => c.name === node.column);
@@ -99,12 +121,13 @@ function renderNode(
               onChange({ ...node, cond: { kind: "eq", values: v === "" ? [] : [v] } })
             }
           />
-        ) : node.column === "マス" && node.cond.kind === "eq" ? (
+        ) : node.column === "マス" &&
+          node.cond.kind === "eq" &&
+          // 海域が混ざった並びは専用UIでは表せないので、素の条件エディタに任せる。
+          parseCells(node.cond.values) !== null ? (
           <CellInput
-            value={String(node.cond.values[0] ?? "")}
-            onChange={(v) =>
-              onChange({ ...node, cond: { kind: "eq", values: v === "" ? [] : [v] } })
-            }
+            values={node.cond.values}
+            onChange={(v) => onChange({ ...node, cond: { kind: "eq", values: v } })}
           />
         ) : (
           <ValueCondEditor
@@ -170,8 +193,9 @@ function renderNode(
         })
       }
       onRemove={onRemove}
-      renderChild={(child, onChildChange, onChildRemove) =>
-        renderNode(child, columns, depth + 1, onChildChange, onChildRemove)
+      dnd={dnd === undefined ? undefined : { ...dnd, path }}
+      renderChild={(child, onChildChange, onChildRemove, index) =>
+        renderNode(child, columns, depth + 1, onChildChange, onChildRemove, dnd, [...path, index])
       }
       keyOf={keyOf}
       onChildEdit={(prev, next) => {
@@ -190,8 +214,23 @@ export function OutputTree(props: {
   onRemove?: () => void;
   depth?: number;
 }) {
+  const dnd = {
+    group: DND_GROUP,
+    onMove: (from: number[], fromIndex: number, to: number[], toIndex: number) =>
+      props.onChange(moveNode(props.node, from, fromIndex, to, toIndex, outputAdapter)),
+  };
   return (
-    <>{renderNode(props.node, props.columns, props.depth ?? 0, props.onChange, props.onRemove)}</>
+    <>
+      {renderNode(
+        props.node,
+        props.columns,
+        props.depth ?? 0,
+        props.onChange,
+        props.onRemove,
+        dnd,
+        [],
+      )}
+    </>
   );
 }
 
