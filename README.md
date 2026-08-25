@@ -4,9 +4,12 @@
 
 <https://hedgehog-cp.github.io/akakari-query-builder/>
 
-特徴として、複数スロットに対するクエリ構築をGUI側で拡張しており「いずれか」や「N個以上」などを簡単に入力できます。
-出力はlogbookが定める`HJSON`およびGoogle Spreadsheetの`QUERY`関数の`WHERE`句に対応しています。
-また、`JSON`(`HJSON`ではない)を入力することでGUIの入力状態を復元できます。
+出力はlogbookが読むクエリ(`HJSON`)に加えて、Google Spreadsheetの`QUERY`関数の`WHERE`句に対応しています。
+赤仮クエリビルダーが実際に扱うのは`JSON`であり`HJSON`ではありませんが、`JSON`は`HJSON`の部分集合であるため出力をlogbookでも利用できます。
+赤仮クエリビルダーが出力した`JSON`を、赤仮クエリビルダーに入力すればGUIの入力状態を復元できます。
+書式は[docs/format.md](docs/format.md)にまとめています。
+
+特長として、複数スロットに対するクエリ構築をGUI側で拡張しており「いずれか」や「N個以上」などを簡単に入力できます。
 現在、`赤仮砲撃戦.csv`、`赤仮夜戦.csv`、`赤仮雷撃戦.csv`それぞれの最新版に対応しています。
 
 ## CSVを読み込んで試す
