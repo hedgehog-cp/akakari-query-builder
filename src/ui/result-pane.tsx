@@ -9,10 +9,16 @@ import { JsonHighlight } from "./json-highlight";
 /**
  * 組み立てた結果を出す枠。テキストを直接編集すると、その内容をクエリに取り込む。
  *
- * 構文強調は「色付きの pre の上に文字色を透明にした textarea を重ねる」よくある手だが、
- * 編集中は選択の反転色が下の pre を覆って読めなくなるうえ、折り返しが少しでもずれると
- * 見えている文字と実際の文字がずれてクリック位置も合わなくなる。そのためフォーカス中は
- * 重ね合わせをやめ、普通に色の付いた textarea として編集させる。
+ * 構文強調は「色付きの pre の上に文字色を透明にした textarea を重ねる」よくある手で、
+ * 編集中も含めて常に重ねたままにする。成立には二つ条件がある。
+ *
+ * ひとつは、pre と textarea の字面が完全に一致していること。フォントか文字サイズが
+ * 片方だけ違うと折り返し位置が食い違い、見えている文字と実際の文字が行を追うごとに
+ * ずれてクリック位置も合わなくなる。素の要素に効く既定フォントの指定が
+ * クラス指定に勝たないよう、配色定義側でレイヤーを分けてある。
+ *
+ * もうひとつは、選択の反転色を半透明にすること。不透明のままだと反転部分が下の pre を
+ * 覆い隠し、選択したとたんに文字が消えたように見える。
  */
 export function ResultPane(props: {
   query: Query;
@@ -256,9 +262,7 @@ export function ResultPane(props: {
             <pre
               ref={preRef}
               aria-hidden="true"
-              class={`pointer-events-none absolute inset-0 m-0 text-xs bg-[#1e1e1e] rounded p-2 overflow-hidden h-full w-full font-mono whitespace-pre-wrap break-words border border-transparent ${
-                focused ? "invisible" : ""
-              }`}
+              class="pointer-events-none absolute inset-0 m-0 text-xs bg-[#1e1e1e] rounded p-2 overflow-hidden h-full w-full font-mono whitespace-pre-wrap break-words border border-transparent"
               style={
                 preSize !== null
                   ? {
@@ -274,9 +278,7 @@ export function ResultPane(props: {
             </pre>
             <textarea
               ref={textareaRef}
-              class={`relative text-xs border border-gray-200 rounded p-2 overflow-auto [scrollbar-gutter:stable] h-full w-full font-mono whitespace-pre-wrap break-words caret-gray-100 ${
-                focused ? "bg-[#1e1e1e] text-gray-100" : "bg-transparent text-transparent"
-              }`}
+              class="relative text-xs border border-gray-200 rounded p-2 overflow-auto [scrollbar-gutter:stable] h-full w-full font-mono whitespace-pre-wrap break-words bg-transparent text-transparent caret-gray-100 selection:bg-[#264f78]/60"
               value={draftText}
               onFocus={() => setFocused(true)}
               onBlur={() => {

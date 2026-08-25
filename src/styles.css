@@ -19,21 +19,26 @@
   OS 既定の UI フォント・サイズで描かれ、本文と字面が揃わない。本文のフォントを
   body に与えたうえで、コントロールにはそれを継承させる。
 
-  サイズは本文に合わせた実測値。ここは要素セレクタなので、Tailwind のクラス
-  (.text-xs / .font-mono など)を付けた箇所はそちらが優先される(出力欄の等幅
-  テキストエリアなど、意図して外したい箇所はクラス側で上書きする)。
-*/
-body {
-  font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-}
+  サイズは本文に合わせた実測値。
 
-input,
-select,
-textarea,
-button {
-  font-family: inherit;
-  font-size: 0.8125rem;
+  必ず @layer base の中に置くこと。Tailwind 4 の utilities は本物のカスケード
+  レイヤーなので、レイヤーに属さない規則は詳細度に関係なくクラス指定に勝つ。
+  レイヤー外に出すと、等幅で描きたい箇所に .font-mono / .text-xs を付けても
+  ここの指定に負け、字幅がずれる。
+*/
+@layer base {
+  body {
+    font-family:
+      -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  input,
+  select,
+  textarea,
+  button {
+    font-family: inherit;
+    font-size: 0.8125rem;
+  }
 }
 
 /*
