@@ -142,7 +142,7 @@ export function App() {
           並ぶので、既定の align-items:stretch により互いの高さが常に一致する。 */}
       <CollapsibleSection
         title="クエリ"
-        class="border border-gray-300 rounded bg-bg-main p-2"
+        class="border border-gray-300 rounded bg-bg-panel p-2"
         bodyClass="grid gap-3 lg:grid-cols-2 min-w-0"
       >
         {/* 3枠目(出力)を 1fr にして余りを吸わせる。右の出力欄のほうが背が高い

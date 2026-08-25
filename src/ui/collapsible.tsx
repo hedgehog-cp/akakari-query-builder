@@ -1,7 +1,26 @@
 import type { ComponentChildren } from "preact";
 import { useState } from "preact/hooks";
 
-/** セクションの開閉見出し。開いていれば ▼、畳んでいれば ▶ を出す。 */
+/**
+ * 開閉のしるし。開いていれば下、畳んでいれば右を向く。
+ *
+ * 上下と左右で別の字を使うと、字ごとに肉付きや字幅が違うので大きさが揃って見えない。
+ * 同じ字を回して向きだけ変え、幅も決め打って、開閉で位置と大きさが動かないようにする。
+ */
+export function Caret(props: { open: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      class={`inline-block w-3 text-center leading-none transition-transform ${
+        props.open ? "rotate-90" : ""
+      }`}
+    >
+      ▶
+    </span>
+  );
+}
+
+/** セクションの開閉見出し。 */
 export function SectionToggle(props: {
   open: boolean;
   onToggle: () => void;
@@ -14,7 +33,9 @@ export function SectionToggle(props: {
       aria-expanded={props.open}
       onClick={props.onToggle}
     >
-      <span class="text-xs text-gray-500">{props.open ? "▼" : "▶"}</span>
+      <span class="text-xs text-gray-500">
+        <Caret open={props.open} />
+      </span>
       {props.children}
     </button>
   );

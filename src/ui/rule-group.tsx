@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import type { ComponentChildren } from "preact";
 import Sortable from "sortablejs";
 import { reorder } from "./reorder";
+import { Caret } from "./collapsible";
 
 /** グループの演算子。 */
 export type GroupOp = "AND" | "OR" | "NOT";
@@ -164,11 +165,12 @@ export function RuleGroup<T>(props: {
       <div class="flex flex-wrap items-center gap-1 py-0.5">
         <button
           type="button"
-          class="text-gray-500 hover:text-gray-800 w-4 text-center"
+          // 見出しの三角より一回り小さくして、節と条件のどちらの開閉かを見分けやすくする。
+          class="ctl text-[0.625rem] text-gray-500 hover:text-gray-800 w-4 inline-flex items-center justify-center"
           onClick={() => setCollapsed((c) => !c)}
           aria-label={collapsed ? "展開" : "折りたたむ"}
         >
-          {collapsed ? "▸" : "▾"}
+          <Caret open={!collapsed} />
         </button>
         {props.opEditable === false ? (
           <OpBadge op={props.op} />
