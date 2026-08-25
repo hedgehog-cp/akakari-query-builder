@@ -26,7 +26,7 @@ export function ResultPane(props: {
   onImport: (q: Query, warnings: ParseWarning[]) => void;
 }) {
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<"hjson" | "query">("hjson");
+  const [tab, setTab] = useState<"json" | "query">("json");
   const [includeDate, setIncludeDate] = useState(false);
   const [copied, setCopied] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -75,14 +75,14 @@ export function ResultPane(props: {
   }, []);
 
   const columnNames = props.columns.map((c) => c.name);
-  const hjsonText = serializeQuery(props.query);
+  const jsonText = serializeQuery(props.query);
   const gq = toGoogleQuery(props.query, props.columns, { includeDate });
   const droppedMessage =
     `次の条件は QUERY に反映されていません: ${gq.dropped.join(", ")}` +
     (gq.dropped.includes("攻撃艦装備") || gq.dropped.includes("防御艦装備")
       ? "。CSV で判定するには出力節の「装備スロット条件」を使ってください。"
       : "");
-  const text = tab === "hjson" ? hjsonText : gq.query;
+  const text = tab === "json" ? jsonText : gq.query;
 
   // ツリーUIでの編集結果は、テキストエリアが未フォーカスの間だけ反映する。
   // フォーカス中に上書きするとカーソル位置が壊れるため。
@@ -151,7 +151,8 @@ export function ResultPane(props: {
   const pickFile = async () => {
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = ".hjson,.json,application/json";
+    // 読むのは JSON だけだが、以前の版が .hjson で保存していたので拡張子は両方受ける。
+    input.accept = ".json,.hjson,application/json";
     input.onchange = async () => {
       const f = input.files?.[0];
       if (f !== undefined) {
@@ -183,8 +184,8 @@ export function ResultPane(props: {
               <input
                 type="radio"
                 name="output-format"
-                checked={tab === "hjson"}
-                onChange={() => setTab("hjson")}
+                checked={tab === "json"}
+                onChange={() => setTab("json")}
               />
               JSON
             </label>
@@ -202,7 +203,7 @@ export function ResultPane(props: {
             type="button"
             class="border border-gray-300 rounded px-2 py-0.5 hover:bg-emp-4"
             onClick={() => {
-              void navigator.clipboard.writeText(tab === "hjson" ? draftText : text);
+              void navigator.clipboard.writeText(tab === "json" ? draftText : text);
               setCopied(true);
               setTimeout(() => setCopied(false), 2000);
             }}
@@ -213,12 +214,15 @@ export function ResultPane(props: {
             type="button"
             class="border border-gray-300 rounded px-2 py-0.5 hover:bg-emp-4"
             onClick={() => {
-              const blob = new Blob([tab === "hjson" ? draftText : text], {
-                type: "application/json;charset=utf-8",
+              // 出す中身に合わせて型と拡張子を変える。JSON 欄の中身は JSON そのもので、
+              // HJSON 独自の記法は使わない。QUERY 欄は WHERE 句の素の文字列。
+              const isJson = tab === "json";
+              const blob = new Blob([isJson ? draftText : text], {
+                type: isJson ? "application/json;charset=utf-8" : "text/plain;charset=utf-8",
               });
               const a = document.createElement("a");
               a.href = URL.createObjectURL(blob);
-              a.download = "akakari-query.hjson";
+              a.download = isJson ? "akakari-query.json" : "akakari-query-where.txt";
               a.click();
               URL.revokeObjectURL(a.href);
             }}
@@ -232,7 +236,9 @@ export function ResultPane(props: {
           >
             JSON を読み込む
           </button>
-          <span class="text-xs text-gray-500">JSONをドラッグ&ドロップして読み込み</span>
+          <span class="text-xs text-gray-500">
+            JSONをドラッグ&ドロップして読み込み(HJSON独自の記法は読めません)
+          </span>
         </div>
         {/* 警告欄は中身の有無にかかわらず1行ぶんの高さを確保しておく。編集のたびに
           出たり消えたりして下の枠が上下すると、打っている場所が動いて打ちづらい。
@@ -270,7 +276,7 @@ export function ResultPane(props: {
             </div>
           </div>
         )}
-        <div class={tab === "hjson" ? "flex-1 flex flex-col min-h-0" : "hidden"}>
+        <div class={tab === "json" ? "flex-1 flex flex-col min-h-0" : "hidden"}>
           <div
             class="relative flex-1 min-h-[26rem]"
             style={resizedHeight !== null ? { minHeight: resizedHeight } : undefined}
