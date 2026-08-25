@@ -4,6 +4,7 @@ import type { Column } from "../schema/catalog";
 import { NamePicker } from "./name-picker";
 import type { NameTarget } from "./name-target";
 import { isEmptyValueCond } from "../model/validate";
+import { ChoiceChips } from "./choice-chips";
 
 /** 画面で選べる条件の種類。 */
 export type CondOp = "一致" | "含む" | "正規表現" | CompareOp;
@@ -50,55 +51,25 @@ function EqEditor(props: {
 }) {
   const col = props.column;
 
-  // enum を持つ列: 複数選択のチップ
+  // enum を持つ列: 値そのものを選ぶ
   if (col?.enum !== undefined) {
-    const picked = new Set(props.values.map(String));
     return (
-      <div class="flex flex-wrap gap-1">
-        {col.enum.map((v) => (
-          <button
-            key={v}
-            type="button"
-            class={`border rounded px-1.5 py-0.5 ${
-              picked.has(v) ? "bg-emp-2 border-emp-1" : "border-gray-300 hover:bg-emp-4"
-            }`}
-            onClick={() => {
-              const next = picked.has(v)
-                ? props.values.filter((x) => String(x) !== v)
-                : [...props.values, v];
-              props.onChange(next);
-            }}
-          >
-            {v}
-          </button>
-        ))}
-      </div>
+      <ChoiceChips
+        choices={col.enum.map((v) => ({ value: v, label: v }))}
+        values={props.values}
+        onChange={props.onChange}
+      />
     );
   }
 
-  // categories を持つ列: ラベル付きの選択肢
+  // categories を持つ列: 数値にラベルが付いているので、両方を出して選ばせる
   if (col?.categories !== undefined) {
-    const picked = new Set(props.values.map(Number));
     return (
-      <div class="flex flex-wrap gap-1">
-        {col.categories.map((c) => (
-          <button
-            key={c.value}
-            type="button"
-            class={`border rounded px-1.5 py-0.5 ${
-              picked.has(c.value) ? "bg-emp-2 border-emp-1" : "border-gray-300 hover:bg-emp-4"
-            }`}
-            onClick={() => {
-              const next = picked.has(c.value)
-                ? props.values.filter((x) => Number(x) !== c.value)
-                : [...props.values, c.value];
-              props.onChange(next);
-            }}
-          >
-            {c.value}: {c.label}
-          </button>
-        ))}
-      </div>
+      <ChoiceChips
+        choices={col.categories.map((c) => ({ value: c.value, label: `${c.value}: ${c.label}` }))}
+        values={props.values}
+        onChange={props.onChange}
+      />
     );
   }
 

@@ -130,15 +130,24 @@ function renderNode(
             onChange={(v) => onChange({ ...node, cond: { kind: "eq", values: v } })}
           />
         ) : (
-          <ValueCondEditor
-            column={col}
-            cond={node.cond}
-            pickerTarget={nameTargetOf(node.column)}
-            onChange={(cond) => onChange({ ...node, cond })}
-          />
+          // 中身にあわせて縮む枠に入れる。行いっぱいに広げると、条件が短いときでも
+          // 妥当でないことを示す赤枠が右端まで伸びてしまう。min-w-0 は、狭いときに
+          // 削除ボタンだけが次の行へ落ちないよう、ここが縮めるようにするため。
+          <div class="min-w-0">
+            <ValueCondEditor
+              column={col}
+              cond={node.cond}
+              pickerTarget={nameTargetOf(node.column)}
+              onChange={(cond) => onChange({ ...node, cond })}
+            />
+          </div>
         )}
         {onRemove !== undefined && (
-          <button type="button" class="text-gray-500 hover:text-red-600 px-1" onClick={onRemove}>
+          <button
+            type="button"
+            class="ctl text-gray-500 hover:text-red-600 px-1 shrink-0"
+            onClick={onRemove}
+          >
             ✕
           </button>
         )}
