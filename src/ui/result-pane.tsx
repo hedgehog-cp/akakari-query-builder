@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { Query } from "../model/types";
-import { serializeQuery } from "../serialize/hjson";
+import { serializeQuery } from "../serialize/json";
 import { toGoogleQuery } from "../serialize/gquery";
 import { parseQuery, type ParseWarning } from "../parse/json";
 import type { Column } from "../schema/catalog";

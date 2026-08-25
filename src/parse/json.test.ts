@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { parseQuery } from "./json";
-import { serializeQuery } from "../serialize/hjson";
+import { serializeQuery } from "../serialize/json";
 import { emptyQuery, type Query } from "../model/types";
 
 const COLS = [

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { compileQuery, THRESHOLD } from "./compile";
 import { emptyQuery, type Query } from "../model/types";
-import { serializeQuery } from "../serialize/hjson";
+import { serializeQuery } from "../serialize/json";
 
 const HEADER = ["No.", "日付", "ランク", "クリティカル", "ダメージ", "攻撃艦.名前", "自索敵"];
 const row = (...cells: string[]) => cells;
@@ -203,7 +203,7 @@ describe("compileQuery", () => {
   });
 });
 
-describe("hjson と評価器の整合", () => {
+describe("出力JSONと評価器の整合", () => {
   it("同じモデルから出た条件で判定が食い違わない", () => {
     const q: Query = withOutput({
       kind: "group",
@@ -213,7 +213,7 @@ describe("hjson と評価器の整合", () => {
         { kind: "column", column: "ダメージ", cond: { kind: "cmp", op: "以下", value: 20 } },
       ],
     });
-    // hjson は同一列への2条件を配列形式のANDで出す(キーが衝突しない)
+    // 出力は同一列への2条件を配列形式のANDで出す(キーが衝突しない)
     const json = JSON.parse(serializeQuery(q)) as { 出力: { AND: unknown[] } };
     expect(json.出力.AND).toHaveLength(2);
 

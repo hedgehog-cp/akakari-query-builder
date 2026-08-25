@@ -3,7 +3,7 @@ import generations from "../schema/generations.json";
 /** 対応する赤仮CSVの種類。 */
 export type Battle = "akakari-hougeki" | "akakari-raigeki" | "akakari-midnight";
 
-/** hjson の 種別 に書く値。赤仮には 砲撃戦 と 赤仮砲撃戦 の2系統があるので略さない。 */
+/** 出力JSONの 種別 に書く値。赤仮には 砲撃戦 と 赤仮砲撃戦 の2系統があるので略さない。 */
 export const BATTLE_KEY: Record<Battle, string> = {
   "akakari-hougeki": "赤仮砲撃戦",
   "akakari-raigeki": "赤仮雷撃戦",
@@ -133,7 +133,7 @@ export function emptyQuery(battle: Battle): Query {
 /**
  * アプリ起動時(下書きが無い場合)と「破棄」ボタンで使う初期値。
  * emptyQuery() は「出力条件なし」を表す値としてパーサ・シリアライザ・各テストで
- * 使われているため変更しない(出力キーの無いhjson読み込みが暗黙にフィルタ付きに
+ * 使われているため変更しない(出力キーの無いJSONの読み込みが暗黙にフィルタ付きに
  * なってしまうのを避ける)。
  */
 export function freshQuery(battle: Battle): Query {

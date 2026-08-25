@@ -17,7 +17,7 @@ function eqJson(values: (string | number)[]): Json {
   return values.length === 1 ? values[0] : [...values];
 }
 
-/** 列の条件を hjson の値にする。 */
+/** 列の条件を JSON の値にする。 */
 export function valueCondToJson(cond: ValueCond): Json {
   switch (cond.kind) {
     case "eq":
@@ -36,7 +36,7 @@ export function valueCondToJson(cond: ValueCond): Json {
   }
 }
 
-/** 出力節の木を hjson の値にする。 */
+/** 出力節の木を JSON の値にする。 */
 export function outputToJson(node: OutputNode): Json {
   switch (node.kind) {
     case "column":
@@ -53,7 +53,7 @@ export function outputToJson(node: OutputNode): Json {
   }
 }
 
-/** 装備条件を hjson の値にする。 */
+/** 装備条件を JSON の値にする。 */
 export function itemCondToJson(cond: ItemCond): Json {
   switch (cond.kind) {
     case "exists":
@@ -68,7 +68,7 @@ export function itemCondToJson(cond: ItemCond): Json {
   }
 }
 
-/** 装備数の条件を hjson の値にする。 */
+/** 装備数の条件を JSON の値にする。 */
 export function countItemToJson(node: CountItemNode): Json {
   switch (node.kind) {
     case "count":
@@ -89,7 +89,7 @@ function dateRangeToJson(r: DateRange): Json {
   return o;
 }
 
-/** クエリ全体を hjson の値にする。 */
+/** クエリ全体を JSON の値にする。 */
 export function queryToJson(q: Query): Json {
   const o: Record<string, Json> = { 種別: BATTLE_KEY[q.battle] };
   if (q.dateRanges.length === 1) {

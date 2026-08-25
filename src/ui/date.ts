@@ -1,5 +1,5 @@
 /**
- * datetime-local の値と hjson の14桁コードを相互変換する。
+ * datetime-local の値と出力JSONの14桁コードを相互変換する。
  * 桁数が14でないと logbook 側のフィルタが常に偽になるため、UIで14桁を保証する。
  */
 export function toDateCode(local: string): string | null {

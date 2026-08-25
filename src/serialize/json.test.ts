@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { serializeQuery, queryToJson } from "./hjson";
+import { serializeQuery, queryToJson } from "./json";
 import { emptyQuery, type Query } from "../model/types";
 
 describe("serializeQuery", () => {
