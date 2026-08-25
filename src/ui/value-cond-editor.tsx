@@ -107,8 +107,10 @@ export function ValueCondEditor(props: {
 
   return (
     <div
-      class={`flex flex-wrap items-center gap-1 ${
-        isEmptyValueCond(props.cond) ? "border border-red-400 bg-red-50 rounded px-1 py-0.5" : ""
+      // 枠と余白は妥当なときも同じだけ確保しておく。出たり消えたりするたびに
+      // 行の大きさが変わると、値を入れ終えた瞬間に画面がガタつくため。
+      class={`flex flex-wrap items-center gap-1 rounded border px-1 py-0.5 ${
+        isEmptyValueCond(props.cond) ? "border-red-400 bg-red-50" : "border-transparent"
       }`}
     >
       <select

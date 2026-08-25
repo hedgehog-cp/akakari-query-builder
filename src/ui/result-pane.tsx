@@ -77,6 +77,11 @@ export function ResultPane(props: {
   const columnNames = props.columns.map((c) => c.name);
   const hjsonText = serializeQuery(props.query);
   const gq = toGoogleQuery(props.query, props.columns, { includeDate });
+  const droppedMessage =
+    `次の条件は QUERY に反映されていません: ${gq.dropped.join(", ")}` +
+    (gq.dropped.includes("攻撃艦装備") || gq.dropped.includes("防御艦装備")
+      ? "。CSV で判定するには出力節の「装備スロット条件」を使ってください。"
+      : "");
   const text = tab === "hjson" ? hjsonText : gq.query;
 
   // ツリーUIでの編集結果は、テキストエリアが未フォーカスの間だけ反映する。
@@ -229,7 +234,15 @@ export function ResultPane(props: {
           </button>
           <span class="text-xs text-gray-500">JSONをドラッグ&ドロップして読み込み</span>
         </div>
-        {error !== null && <p class="text-xs text-red-600 mb-1">読み込めませんでした: {error}</p>}
+        {/* 警告欄は中身の有無にかかわらず1行ぶんの高さを確保しておく。編集のたびに
+          出たり消えたりして下の枠が上下すると、打っている場所が動いて打ちづらい。
+          長い文面は1行に収めて省略し、全文は title で読めるようにする。 */}
+        <p
+          class={`text-xs text-red-600 mb-1 h-4 leading-4 truncate ${error === null ? "invisible" : ""}`}
+          title={error ?? undefined}
+        >
+          読み込めませんでした: {error}
+        </p>
         {tab === "query" && (
           <div class="text-xs text-gray-600 mb-1 space-y-1">
             <label class="flex items-center gap-1">
@@ -240,18 +253,21 @@ export function ResultPane(props: {
               />
               日時を QUERY に載せる(日付列が日時値として取り込まれている場合のみ効きます)
             </label>
-            {gq.dropped.length > 0 && (
-              <p class="text-red-600">
-                次の条件は QUERY に反映されていません: {gq.dropped.join(", ")}
-                {(gq.dropped.includes("攻撃艦装備") || gq.dropped.includes("防御艦装備")) &&
-                  "。CSV で判定するには出力節の「装備スロット条件」を使ってください。"}
-              </p>
-            )}
-            {gq.warnings.map((w, i) => (
-              <p key={i} class="text-amber-700">
-                {w}
-              </p>
-            ))}
+            {/* 警告は条件をいじるたびに増えたり減ったりする。そのぶん下の枠が動くと
+              画面が上下に揺れて読みづらいので、2行ぶんの高さを常に取っておき、
+              溢れるぶんはこの中だけを繰る。1件は1行に収めて、全文は title で読む。 */}
+            <div class="h-8 overflow-y-auto">
+              {gq.dropped.length > 0 && (
+                <p class="text-red-600 leading-4 truncate" title={droppedMessage}>
+                  {droppedMessage}
+                </p>
+              )}
+              {gq.warnings.map((w, i) => (
+                <p key={i} class="text-amber-700 leading-4 truncate" title={w}>
+                  {w}
+                </p>
+              ))}
+            </div>
           </div>
         )}
         <div class={tab === "hjson" ? "flex-1 flex flex-col min-h-0" : "hidden"}>
