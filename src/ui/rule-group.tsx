@@ -41,7 +41,7 @@ const OP_LABEL: Record<GroupOp, string> = {
  * 演算子ごとの色分けはしない(画面の中で演算子だけが原色で浮くのを避ける)。 */
 export function OpBadge(props: { op: GroupOp }) {
   return (
-    <span class="border border-gray-300 bg-gray-50 text-gray-700 rounded px-1 py-0.5 font-bold inline-block whitespace-nowrap">
+    <span class="ctl border border-gray-300 bg-gray-50 text-gray-700 rounded px-1 font-bold inline-flex items-center whitespace-nowrap">
       {OP_LABEL[props.op]}
     </span>
   );
@@ -174,7 +174,7 @@ export function RuleGroup<T>(props: {
           <OpBadge op={props.op} />
         ) : (
           <select
-            class="border border-gray-300 rounded px-1 font-bold shrink-0"
+            class="ctl border border-gray-300 rounded px-1 font-bold shrink-0"
             value={props.op}
             onChange={(e) => props.onOpChange?.((e.target as HTMLSelectElement).value as GroupOp)}
           >
@@ -189,7 +189,7 @@ export function RuleGroup<T>(props: {
               <button
                 key={a.label}
                 type="button"
-                class="border border-emp-1 rounded px-2 py-0.5 hover:bg-emp-4 whitespace-nowrap shrink-0"
+                class="ctl border border-emp-1 rounded px-2 hover:bg-emp-4 whitespace-nowrap shrink-0"
                 onClick={a.onClick}
               >
                 {a.label}
@@ -198,7 +198,7 @@ export function RuleGroup<T>(props: {
             {props.onAddGroup !== undefined && (
               <button
                 type="button"
-                class="border border-emp-1 rounded px-2 py-0.5 hover:bg-emp-4 whitespace-nowrap shrink-0"
+                class="ctl border border-emp-1 rounded px-2 hover:bg-emp-4 whitespace-nowrap shrink-0"
                 onClick={props.onAddGroup}
               >
                 + グループ
@@ -217,7 +217,7 @@ export function RuleGroup<T>(props: {
         {props.onRemove !== undefined && (
           <button
             type="button"
-            class="text-gray-500 hover:text-red-600 px-1 ml-auto"
+            class="ctl text-gray-500 hover:text-red-600 px-1 ml-auto"
             onClick={props.onRemove}
           >
             ✕
@@ -241,7 +241,7 @@ export function RuleGroup<T>(props: {
         {props.children.map((c, i) => (
           <div key={props.keyOf ? props.keyOf(c, i) : i} class="flex items-start gap-1">
             <span
-              class="rule-drag-handle cursor-grab text-gray-400 px-1 py-1 select-none"
+              class="rule-drag-handle ctl cursor-grab text-gray-400 px-1 select-none inline-flex items-center"
               title="ドラッグで並べ替え"
             >
               ⋮⋮

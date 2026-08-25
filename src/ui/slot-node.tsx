@@ -84,7 +84,7 @@ export function SlotNodeEditor(props: {
         headerExtra={
           <>
             <select
-              class="border border-gray-300 rounded px-1 shrink-0"
+              class="ctl border border-gray-300 rounded px-1 shrink-0"
               value={node.side}
               onChange={(e) =>
                 props.onChange({ ...node, side: (e.target as HTMLSelectElement).value as Side })
@@ -97,7 +97,7 @@ export function SlotNodeEditor(props: {
               ))}
             </select>
             <select
-              class="border border-gray-300 rounded px-1 shrink-0"
+              class="ctl border border-gray-300 rounded px-1 shrink-0"
               value={quantityValue(node.quantity)}
               onChange={(e) =>
                 props.onChange({
@@ -123,7 +123,7 @@ export function SlotNodeEditor(props: {
         renderChild={(a, onChange, onRemove) => (
           <div class="flex flex-wrap items-center gap-1 py-0.5">
             <select
-              class="border border-gray-300 rounded px-1"
+              class="ctl border border-gray-300 rounded px-1"
               value={a.attr}
               onChange={(e) => {
                 const attr = (e.target as HTMLSelectElement).value as SlotAttr;
@@ -145,7 +145,7 @@ export function SlotNodeEditor(props: {
             {onRemove !== undefined && (
               <button
                 type="button"
-                class="text-gray-500 hover:text-red-600 px-1"
+                class="ctl text-gray-500 hover:text-red-600 px-1"
                 onClick={onRemove}
               >
                 ✕

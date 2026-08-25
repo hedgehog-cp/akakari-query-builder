@@ -27,7 +27,7 @@ export function DisplayItemNodeEditor(props: {
       <div class="flex flex-wrap items-center gap-1 py-0.5">
         <span class="font-bold text-xs">表示装備条件</span>
         <select
-          class="border border-gray-300 rounded px-1"
+          class="ctl border border-gray-300 rounded px-1"
           value={quantityValue(node.quantity)}
           onChange={(e) =>
             props.onChange({
@@ -49,7 +49,7 @@ export function DisplayItemNodeEditor(props: {
         {props.onRemove !== undefined && (
           <button
             type="button"
-            class="text-gray-500 hover:text-red-600 px-1 ml-auto"
+            class="ctl text-gray-500 hover:text-red-600 px-1 ml-auto"
             onClick={props.onRemove}
           >
             ✕

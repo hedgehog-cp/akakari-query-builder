@@ -106,7 +106,7 @@ function EqEditor(props: {
   return (
     <input
       type="text"
-      class="border border-gray-300 rounded px-1 flex-1 min-w-[8rem]"
+      class="ctl border border-gray-300 rounded px-1 flex-1 min-w-[8rem]"
       placeholder={col?.example ?? "値(カンマ区切りでOR)"}
       value={props.values.join(",")}
       onInput={(e) => {
@@ -141,7 +141,7 @@ export function ValueCondEditor(props: {
       }`}
     >
       <select
-        class="border border-gray-300 rounded px-1"
+        class="ctl border border-gray-300 rounded px-1"
         value={op}
         onChange={(e) =>
           props.onChange(defaultCond((e.target as HTMLSelectElement).value as CondOp, col))
@@ -165,7 +165,7 @@ export function ValueCondEditor(props: {
       {(props.cond.kind === "contains" || props.cond.kind === "regex") && (
         <input
           type="text"
-          class="border border-gray-300 rounded px-1 flex-1 min-w-[8rem]"
+          class="ctl border border-gray-300 rounded px-1 flex-1 min-w-[8rem]"
           placeholder={props.cond.kind === "regex" ? "正規表現(完全一致)" : "部分一致する文字列"}
           value={props.cond.values[0] ?? ""}
           onInput={(e) =>
@@ -180,7 +180,7 @@ export function ValueCondEditor(props: {
       {props.cond.kind === "cmp" && (
         <input
           type="number"
-          class="border border-gray-300 rounded px-1 w-24"
+          class="ctl border border-gray-300 rounded px-1 w-24"
           placeholder={numPlaceholder}
           value={props.cond.value}
           onInput={(e) =>
@@ -197,7 +197,7 @@ export function ValueCondEditor(props: {
         <>
           <button
             type="button"
-            class="border border-emp-1 rounded px-2 py-0.5 hover:bg-emp-4"
+            class="ctl shrink-0 border border-emp-1 rounded px-2 hover:bg-emp-4"
             onClick={() => setPickerOpen(true)}
           >
             選択…

@@ -17,7 +17,7 @@ function ColumnSelect(props: {
   const missing = !known.has(props.value);
   return (
     <select
-      class={`border rounded px-1 max-w-[16rem] ${missing ? "border-red-500 bg-red-50" : "border-gray-300"}`}
+      class={`ctl shrink-0 border rounded px-1 max-w-[16rem] ${missing ? "border-red-500 bg-red-50" : "border-gray-300"}`}
       value={props.value}
       onChange={(e) => props.onChange((e.target as HTMLSelectElement).value)}
     >
@@ -248,7 +248,7 @@ export function OutputSection(props: {
         {props.node === null ? (
           <button
             type="button"
-            class="border border-emp-1 rounded px-2 py-0.5 hover:bg-emp-4"
+            class="ctl border border-emp-1 rounded px-2 hover:bg-emp-4"
             onClick={() => props.onChange({ kind: "group", op: "AND", children: [] })}
           >
             条件を組み立てる

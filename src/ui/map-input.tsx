@@ -94,7 +94,7 @@ export function MapAreaSelect(props: { value: string; onChange: (v: string) => v
   const known = new Set(master.maps.map((m) => m.name));
   return (
     <select
-      class="border border-gray-300 rounded px-1 max-w-[16rem]"
+      class="ctl border border-gray-300 rounded px-1 max-w-[16rem]"
       value={props.value}
       onChange={(e) => props.onChange((e.target as HTMLSelectElement).value)}
     >
@@ -138,7 +138,7 @@ export function CellInput(props: {
   return (
     <span class="flex items-center gap-1">
       <select
-        class="border border-gray-300 rounded px-1 max-w-[10rem]"
+        class="ctl border border-gray-300 rounded px-1 max-w-[10rem]"
         value={draft.mapNo}
         onChange={(e) => emit({ ...draft, mapNo: (e.target as HTMLSelectElement).value })}
       >
@@ -158,7 +158,7 @@ export function CellInput(props: {
       <span class="text-xs shrink-0">セル</span>
       <input
         type="text"
-        class="border border-gray-300 rounded px-1 w-28"
+        class="ctl border border-gray-300 rounded px-1 w-28"
         placeholder="4,5,7-9"
         title="カンマ区切りでOR、ハイフンで範囲"
         value={draft.cells}
