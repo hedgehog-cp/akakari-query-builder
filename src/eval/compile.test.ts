@@ -163,6 +163,75 @@ describe("compileQuery", () => {
     expect(p(row("1", "2024/07/20 9:05:00", "", "", "", "", ""))).toBe(true);
   });
 
+  it("複数の語を含む条件は、記号を字のまま扱う", () => {
+    const p = pred(
+      withOutput({
+        kind: "column",
+        column: "攻撃艦.名前",
+        cond: { kind: "contains", values: ["12.7cm", "電探"] },
+      }),
+    );
+    expect(p(row("1", "", "", "", "", "12.7cm連装砲", ""))).toBe(true);
+    expect(p(row("1", "", "", "", "", "21号対空電探", ""))).toBe(true);
+    // . を任意の1文字として扱ってしまうと、これも通ってしまう
+    expect(p(row("1", "", "", "", "", "1257cm連装砲", ""))).toBe(false);
+  });
+
+  it("複数の型はどれかに完全一致すれば通す", () => {
+    const p = pred(
+      withOutput({
+        kind: "column",
+        column: "攻撃艦.名前",
+        cond: { kind: "regex", values: ["島風.*", "雪風.*"] },
+      }),
+    );
+    expect(p(row("1", "", "", "", "", "島風改", ""))).toBe(true);
+    expect(p(row("1", "", "", "", "", "雪風改二", ""))).toBe(true);
+    expect(p(row("1", "", "", "", "", "時雨改二", ""))).toBe(false);
+    // 完全一致なので、途中に含むだけでは通さない
+    expect(p(row("1", "", "", "", "", "新島風", ""))).toBe(false);
+  });
+
+  it("後方参照を含む型も1つずつ試して通す", () => {
+    const p = pred(
+      withOutput({
+        kind: "column",
+        column: "攻撃艦.名前",
+        cond: { kind: "regex", values: ["(.)\\1", "雪風"] },
+      }),
+    );
+    expect(p(row("1", "", "", "", "", "aa", ""))).toBe(true);
+    expect(p(row("1", "", "", "", "", "雪風", ""))).toBe(true);
+    expect(p(row("1", "", "", "", "", "ab", ""))).toBe(false);
+  });
+
+  it("日付は形が違えば読まない", () => {
+    const q: Query = {
+      ...emptyQuery("akakari-hougeki"),
+      dateRanges: [{ start: "20240720000000", end: null }],
+    };
+    const p = compileQuery(q, HEADER).predicate;
+    expect(p(row("1", "2024/07/20 12:34:56", "", "", "", "", ""))).toBe(true);
+    expect(p(row("1", " 2024/07/20 12:34:56 ", "", "", "", "", ""))).toBe(true);
+    expect(p(row("1", "2024/07/20 12:34", "", "", "", "", ""))).toBe(false);
+    expect(p(row("1", "2024-07-20 12:34:56", "", "", "", "", ""))).toBe(false);
+    expect(p(row("1", "2024/07/20 12:34:56x", "", "", "", "", ""))).toBe(false);
+    expect(p(row("1", "24/7/20 12:34:56", "", "", "", "", ""))).toBe(false);
+    expect(p(row("1", "2024/07/20", "", "", "", "", ""))).toBe(false);
+  });
+
+  it("日付の範囲は両端を含む", () => {
+    const q: Query = {
+      ...emptyQuery("akakari-hougeki"),
+      dateRanges: [{ start: "20240720123456", end: "20240720123458" }],
+    };
+    const p = compileQuery(q, HEADER).predicate;
+    expect(p(row("1", "2024/07/20 12:34:55", "", "", "", "", ""))).toBe(false);
+    expect(p(row("1", "2024/07/20 12:34:56", "", "", "", "", ""))).toBe(true);
+    expect(p(row("1", "2024/07/20 12:34:58", "", "", "", "", ""))).toBe(true);
+    expect(p(row("1", "2024/07/20 12:34:59", "", "", "", "", ""))).toBe(false);
+  });
+
   it("日付がパースできない行は日時条件を満たさない", () => {
     const q: Query = {
       ...emptyQuery("akakari-hougeki"),

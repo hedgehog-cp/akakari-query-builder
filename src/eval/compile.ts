@@ -25,6 +25,25 @@ function asNumber(value: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/** 正規表現の中で、記号を字そのものとして扱わせる。 */
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * 複数の型を1本にまとめる。型ごとに試すより速いが、後方参照(\1)や名前付きの組は
+ * 番号や名前がぶつかって意味が変わるため、そのときは諦めて null を返す。
+ */
+function combineRegex(patterns: string[]): RegExp | null {
+  if (patterns.length < 2) return null;
+  if (patterns.some((p) => /\\\d|\(\?</.test(p))) return null;
+  try {
+    return new RegExp(`^(?:${patterns.map((p) => `(?:${p})`).join("|")})$`);
+  } catch {
+    return null;
+  }
+}
+
 function valuePredicate(cond: ValueCond): (value: string) => boolean {
   switch (cond.kind) {
     case "eq": {
@@ -40,10 +59,19 @@ function valuePredicate(cond: ValueCond): (value: string) => boolean {
     }
     case "contains": {
       const parts = cond.values;
-      return (value) => parts.some((p) => value.includes(p));
+      if (parts.length === 1) {
+        const only = parts[0];
+        return (value) => value.includes(only);
+      }
+      // 語ごとに includes を回すと語数に比例して遅くなる。1本の正規表現にまとめれば
+      // 何語あっても値を1度なぞるだけで済む(20語で1桁速い)。
+      const re = new RegExp(parts.map(escapeRegex).join("|"));
+      return (value) => re.test(value);
     }
     case "regex": {
       // logbook は matches()、すなわち完全一致
+      const one = combineRegex(cond.values);
+      if (one !== null) return (value) => one.test(value);
       const res = cond.values.map((p) => new RegExp(`^(?:${p})$`));
       return (value) => res.some((r) => r.test(value));
     }
@@ -105,15 +133,66 @@ function outputPredicate(
   }
 }
 
+const ZERO = 48;
+const NINE = 57;
+const SLASH = 47;
+const COLON = 58;
+/** 数と数の間が空白であることを表す(空白なら何文字あってもよい)。 */
+const SPACE = -1;
+
+/** 年・月・日・時・分・秒の順に、間に来る字。最後の秒の後には何も来ない。 */
+const DATE_SEPARATORS = [SLASH, SLASH, SPACE, COLON, COLON];
+
+function isSpace(code: number): boolean {
+  return code === 32 || code === 9 || code === 13 || code === 10;
+}
+
 /**
  * EOEN の 日付 は %Y/%m/%d %H:%M:%S。日本語環境では時がゼロ埋めされない。
- * 比較用に yyyyMMddHHmmss へ揃える。読めなければ null。
+ * 比較用に yyyyMMddHHmmss と同じ並びの数へ揃える。形が違えば -1。
+ *
+ * 1行ごとに呼ばれるので、正規表現も文字列の組み立ても使わない。桁を数として
+ * 積んでいくだけなら、その場の値だけで済んで何も作らずに済む。
  */
-function dateCodeOf(value: string): string | null {
-  const m = /^(\d{4})\/(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{1,2}):(\d{1,2})$/.exec(value.trim());
-  if (m === null) return null;
-  const pad = (s: string, n: number) => s.padStart(n, "0");
-  return `${m[1]}${pad(m[2], 2)}${pad(m[3], 2)}${pad(m[4], 2)}${pad(m[5], 2)}${pad(m[6], 2)}`;
+function dateCodeOf(value: string): number {
+  let i = 0;
+  let end = value.length;
+  while (i < end && isSpace(value.charCodeAt(i))) i++;
+  while (end > i && isSpace(value.charCodeAt(end - 1))) end--;
+
+  let code = 0;
+  for (let part = 0; part < 6; part++) {
+    // 年だけは4桁固定。月日時分秒はゼロ埋めされないことがあるので1桁でも通す。
+    const width = part === 0 ? 4 : 2;
+    let digits = 0;
+    let n = 0;
+    while (i < end && digits < width) {
+      const c = value.charCodeAt(i);
+      if (c < ZERO || c > NINE) break;
+      n = n * 10 + (c - ZERO);
+      i++;
+      digits++;
+    }
+    if (digits < (part === 0 ? 4 : 1)) return -1;
+    code = part === 0 ? n : code * 100 + n;
+
+    if (part === 5) break;
+    const separator = DATE_SEPARATORS[part];
+    if (separator === SPACE) {
+      if (i >= end || !isSpace(value.charCodeAt(i))) return -1;
+      while (i < end && isSpace(value.charCodeAt(i))) i++;
+    } else {
+      if (value.charCodeAt(i) !== separator) return -1;
+      i++;
+    }
+  }
+  return i === end ? code : -1;
+}
+
+/** 範囲の端(yyyyMMddHHmmss の14桁)を数にする。14桁でなければ null。 */
+function boundCodeOf(bound: string | null): number | null {
+  if (bound === null) return null;
+  return /^\d{14}$/.test(bound) ? Number(bound) : null;
 }
 
 function datePredicate(
@@ -125,11 +204,21 @@ function datePredicate(
   const i = index.get("日付");
   if (i === undefined) return () => false;
   used.add(i);
+  // 端は行ごとに変わらないので先に数にしておく。14桁でない端(画面と読み込みが
+  // 弾くので届かないはず)を持つ範囲は、合う行が無いものとして落とす。
+  const bounds: { start: number | null; end: number | null }[] = [];
+  for (const r of ranges) {
+    const start = boundCodeOf(r.start);
+    const end = boundCodeOf(r.end);
+    if ((r.start !== null && start === null) || (r.end !== null && end === null)) continue;
+    bounds.push({ start, end });
+  }
+  if (bounds.length === 0) return () => false;
   return (row) => {
     const code = dateCodeOf(row[i] ?? "");
-    if (code === null) return false;
-    return ranges.some(
-      (r) => (r.start === null || r.start <= code) && (r.end === null || code <= r.end),
+    if (code < 0) return false;
+    return bounds.some(
+      (b) => (b.start === null || b.start <= code) && (b.end === null || code <= b.end),
     );
   };
 }
