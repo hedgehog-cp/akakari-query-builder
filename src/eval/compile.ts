@@ -7,6 +7,8 @@ export type Predicate = (row: string[]) => boolean;
 /** compileQuery の結果。 */
 export type Compiled = {
   predicate: Predicate;
+  /** predicate が読む列の位置。ここに無い列は走査で文字列にしなくてよい。 */
+  usedColumns: number[];
   /** 評価できずに無視した節。 */
   ignored: string[];
   /** CSV のヘッダに無かった列。その条件は常に偽になる。 */
@@ -75,6 +77,7 @@ function outputPredicate(
   node: OutputNode,
   index: Map<string, number>,
   missing: Set<string>,
+  used: Set<number>,
 ): Predicate {
   switch (node.kind) {
     case "column": {
@@ -83,11 +86,12 @@ function outputPredicate(
         missing.add(node.column);
         return () => false;
       }
+      used.add(i);
       const test = valuePredicate(node.cond);
       return (row) => test(row[i] ?? "");
     }
     case "group": {
-      const kids = node.children.map((c) => outputPredicate(c, index, missing));
+      const kids = node.children.map((c) => outputPredicate(c, index, missing, used));
       if (node.op === "NOT") {
         return kids[0] === undefined ? () => true : (row) => !kids[0](row);
       }
@@ -112,10 +116,15 @@ function dateCodeOf(value: string): string | null {
   return `${m[1]}${pad(m[2], 2)}${pad(m[3], 2)}${pad(m[4], 2)}${pad(m[5], 2)}${pad(m[6], 2)}`;
 }
 
-function datePredicate(ranges: DateRange[], index: Map<string, number>): Predicate | null {
+function datePredicate(
+  ranges: DateRange[],
+  index: Map<string, number>,
+  used: Set<number>,
+): Predicate | null {
   if (ranges.length === 0) return null;
   const i = index.get("日付");
   if (i === undefined) return () => false;
+  used.add(i);
   return (row) => {
     const code = dateCodeOf(row[i] ?? "");
     if (code === null) return false;
@@ -132,13 +141,14 @@ function datePredicate(ranges: DateRange[], index: Map<string, number>): Predica
 export function compileQuery(q: Query, header: string[]): Compiled {
   const index = new Map(header.map((name, i) => [name, i]));
   const missing = new Set<string>();
+  const used = new Set<number>();
   const ignored: string[] = [];
   const parts: Predicate[] = [];
 
   if (q.output !== null) {
-    parts.push(outputPredicate(expandOutput(q.output), index, missing));
+    parts.push(outputPredicate(expandOutput(q.output), index, missing, used));
   }
-  const date = datePredicate(q.dateRanges, index);
+  const date = datePredicate(q.dateRanges, index, used);
   if (date !== null) parts.push(date);
 
   // 装備ID・カテゴリ・装備自体の性能は CSV に列が無いので評価できない
@@ -148,5 +158,5 @@ export function compileQuery(q: Query, header: string[]): Compiled {
   const predicate: Predicate =
     parts.length === 0 ? () => true : (row) => parts.every((p) => p(row));
 
-  return { predicate, ignored, missingColumns: [...missing] };
+  return { predicate, usedColumns: [...used], ignored, missingColumns: [...missing] };
 }

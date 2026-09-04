@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 import type { Query } from "../model/types";
 import { compileQuery } from "./compile";
-import { CsvParser, formatCsvRow } from "./csv";
+import { CsvLineReader, parseCsvLine, pickFields } from "./scan";
 import { detectBadEncoding, type BadEncoding } from "./encoding";
 
 /** 画面からワーカーへの依頼。 */
@@ -53,7 +53,7 @@ function post(msg: PreviewMessage): void {
 self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
   const { query, header, file } = e.data;
   try {
-    const parser = new CsvParser();
+    const lines = new CsvLineReader();
     // TextDecoderStream を挟むと文字数しか分からず、File.size(バイト)と比べられない。
     // 進捗バーの分母を実バイト数にするため、生のチャンクを受けて自前で復号する。
     const reader = file.stream().getReader();
@@ -67,36 +67,51 @@ self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
     const state: { compiled: ReturnType<typeof compileQuery> | null } = { compiled: null };
     let scanned = 0;
     let matched = 0;
+    let stopped = false;
     const keptRows: string[][] = [];
     const out: string[] = [];
 
-    const handle = (rows: string[][]): boolean => {
-      for (const row of rows) {
-        if (csvHeader === null) {
-          csvHeader = row;
-          const got = new Set(row);
-          const want = new Set(header);
-          const missing = header.filter((n) => !got.has(n));
-          const extra = row.filter((n) => !want.has(n));
-          if (missing.length > 0 || extra.length > 0) {
-            post({ type: "header-mismatch", missing, extra });
-            return false;
-          }
-          state.compiled = compileQuery(query, row);
-          out.push(formatCsvRow(row));
-          continue;
+    // 条件が見る列だけを取り出すための印と、その最も後ろの位置。
+    let want = new Uint8Array(0);
+    let maxCol = -1;
+    // 条件に渡す行。列を拾うたびに使い回す(1行ごとに配列を作らない)。
+    const fields: string[] = [];
+
+    const handle = (line: string): void => {
+      if (csvHeader === null) {
+        const row = parseCsvLine(line);
+        csvHeader = row;
+        const got = new Set(row);
+        const wanted = new Set(header);
+        const missing = header.filter((n) => !got.has(n));
+        const extra = row.filter((n) => !wanted.has(n));
+        if (missing.length > 0 || extra.length > 0) {
+          post({ type: "header-mismatch", missing, extra });
+          stopped = true;
+          return;
         }
-        scanned++;
-        if (state.compiled !== null && state.compiled.predicate(row)) {
-          matched++;
-          // 複製してから抱える。パーサが返すセルは読み込んだチャンクの一部を
-          // 指しており、そのまま持ち続けるとチャンク全体が解放されない。
-          // 数百MBのCSVでは、1万行を散らして拾うだけで数百MBを掴んだままになる。
-          if (keptRows.length < PREVIEW_ROWS) keptRows.push(structuredClone(row));
-          out.push(formatCsvRow(row));
+        const compiled = compileQuery(query, row);
+        state.compiled = compiled;
+        want = new Uint8Array(row.length);
+        for (const i of compiled.usedColumns) {
+          want[i] = 1;
+          if (i > maxCol) maxCol = i;
         }
+        out.push(line);
+        return;
       }
-      return true;
+      scanned++;
+      const compiled = state.compiled;
+      if (compiled !== null) {
+        pickFields(line, want, maxCol, fields);
+        if (!compiled.predicate(fields)) return;
+      }
+      matched++;
+      // 表に出すぶんだけ全部のセルに分ける。残りは行の文字列のまま持てば足りる。
+      // 複製するのは、切り出したセルが読み込んだチャンクの一部を指しているため。
+      // そのまま抱えると、拾った行が散らばっているだけでチャンクが解放されない。
+      if (keptRows.length < PREVIEW_ROWS) keptRows.push(structuredClone(parseCsvLine(line)));
+      out.push(line);
     };
 
     let first = true;
@@ -115,7 +130,8 @@ self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
       }
       bytes += value.byteLength;
       // stream: true でチャンク境界にまたがる多バイト文字を持ち越す
-      if (!handle(parser.push(decoder.decode(value, { stream: true })))) return;
+      lines.push(decoder.decode(value, { stream: true }), handle);
+      if (stopped) return;
       const now = performance.now();
       if (now - lastPost >= PROGRESS_INTERVAL_MS) {
         lastPost = now;
@@ -124,8 +140,12 @@ self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
     }
     // 復号器に残った持ち越しを吐き出させる(不完全なバイト列は置換文字になる)
     const tail = decoder.decode();
-    if (tail !== "" && !handle(parser.push(tail))) return;
-    if (!handle(parser.flush())) return;
+    if (tail !== "") {
+      lines.push(tail, handle);
+      if (stopped) return;
+    }
+    lines.flush(handle);
+    if (stopped) return;
     // 読み終えた時点で 100% にしておく。この後の csv 組み立て(数十MBの join)にも
     // 時間がかかるため、そこで帯が途中の値のまま止まって見えないようにする。
     post({ type: "progress", scanned, matched, bytes });

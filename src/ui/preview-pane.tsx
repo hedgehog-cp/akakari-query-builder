@@ -265,7 +265,10 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
   const allCsv = (includeHeader: boolean): string => {
     if (done === null) return "";
     const body = stripBom(done.csv);
-    return includeHeader ? body : body.slice(formatCsvRow(done.header).length + 2);
+    if (includeHeader) return body;
+    // 列名の行は元の CSV の書き方のまま入っているので、長さは改行を探して測る。
+    const nl = body.indexOf("\r\n");
+    return nl === -1 ? "" : body.slice(nl + 2);
   };
 
   const suffix = selected.size > 0 ? `(選択 ${selected.size} 行)` : "";
