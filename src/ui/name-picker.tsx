@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { master, equipTypeName, isAbyssal, shipTypeName } from "../master/load";
 import { EQUIP_GROUPS, inEquipGroup } from "../master/groups";
 import type { NameTarget } from "./name-target";
+import { useScrollLock } from "./scroll-lock";
 
 type Row = { id: number; name: string; sub: string };
 
@@ -44,6 +45,9 @@ export function NamePicker(props: {
   const [picked, setPicked] = useState<(string | number)[]>(props.initial);
 
   const searchRef = useRef<HTMLInputElement>(null);
+
+  // 開いている間は背面のページを固定する(この枠は開いているときだけ作られる)。
+  useScrollLock(true);
 
   useEffect(() => {
     searchRef.current?.focus();

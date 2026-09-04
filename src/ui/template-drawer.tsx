@@ -7,6 +7,7 @@ import {
   saveTemplate,
   type Template,
 } from "../storage/templates";
+import { useScrollLock } from "./scroll-lock";
 
 /** 保存したクエリを出し入れする引き出し。 */
 export function TemplateDrawer(props: {
@@ -20,6 +21,9 @@ export function TemplateDrawer(props: {
   const [renaming, setRenaming] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const renameInputRef = useRef<HTMLInputElement>(null);
+
+  // 開いている間は背面のページを固定する。
+  useScrollLock(open);
 
   useEffect(() => {
     if (!open) return;
