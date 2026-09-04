@@ -86,7 +86,10 @@ self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
         scanned++;
         if (state.compiled !== null && state.compiled.predicate(row)) {
           matched++;
-          if (keptRows.length < PREVIEW_ROWS) keptRows.push(row);
+          // 複製してから抱える。パーサが返すセルは読み込んだチャンクの一部を
+          // 指しており、そのまま持ち続けるとチャンク全体が解放されない。
+          // 数百MBのCSVでは、1万行を散らして拾うだけで数百MBを掴んだままになる。
+          if (keptRows.length < PREVIEW_ROWS) keptRows.push(structuredClone(row));
           out.push(formatCsvRow(row));
         }
       }

@@ -72,6 +72,22 @@ describe("CsvParser", () => {
   it("BOM付き先頭行を読む", () => {
     expect(parseAll(["﻿No.,日付\r\n"])).toEqual([["No.", "日付"]]);
   });
+
+  it("単独のCRも改行として扱う", () => {
+    expect(parseAll(["a,b\rc,d\r"])).toEqual([
+      ["a", "b"],
+      ["c", "d"],
+    ]);
+  });
+
+  it("どの位置でチャンクを切っても同じ結果になる", () => {
+    // BOM・引用・エスケープ・空セル・CRLF・LF・単独CR を1本に詰めた入力。
+    const text = '﻿a,b\r\nc,"x,y"\r\n"say ""hi""",\r\n"改\r\n行",z\ne,f\rg,h';
+    const whole = parseAll([text]);
+    for (let i = 1; i < text.length; i++) {
+      expect(parseAll([text.slice(0, i), text.slice(i)])).toEqual(whole);
+    }
+  });
 });
 
 describe("formatCsvRow", () => {
