@@ -79,3 +79,15 @@
 .contain-layout {
   contain: layout paint;
 }
+
+/*
+  D&D 中の挿入先のしるし。SortableJS は落とし先の位置に元の行(ghost)を差し込む
+  ので、その行を高さ 0 に潰し、上辺の線だけを残して「ここに入る」を示す。
+  中身は overflow で切り落とす — visibility で消しても高さは残り、線ではなく
+  行の大きさの空白になってしまう。
+*/
+.rule-ghost {
+  height: 0;
+  overflow: hidden;
+  border-top: 2px solid var(--color-emp-1);
+}

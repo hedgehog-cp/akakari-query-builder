@@ -111,6 +111,8 @@ export function RuleGroup<T>(props: {
     const sortable = Sortable.create(el, {
       handle: ".rule-drag-handle",
       animation: 150,
+      // 落とし先に置かれる行に付く印。見た目は styles.css の .rule-ghost。
+      ghostClass: "rule-ghost",
       // 入れ子のリストへ落とすときの判定。既定値のままだと、内側のリストの上に
       // 来てもなかなか受け取ってくれない。
       swapThreshold: 0.65,
