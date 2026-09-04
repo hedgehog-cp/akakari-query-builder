@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks"
 import { BATTLE_LABEL, type Query } from "../model/types";
 import type { Column } from "../schema/catalog";
 import type { PreviewMessage } from "../eval/preview.worker";
-import { CsvParser, formatCsvRow, formatTsvRow, stripBom } from "../eval/csv";
+import { CsvParser, formatCsvRow, formatTsvRow } from "../eval/csv";
 import type { BadEncoding } from "../eval/encoding";
 import { SectionToggle } from "./collapsible";
 
@@ -24,7 +24,8 @@ type State =
       rows: string[][];
       truncated: boolean;
       header: string[];
-      csv: string;
+      /** 一致した行の CSV(UTF-8 BOM付き・CRLF)。文字にするのは求められたときだけ。 */
+      csv: ArrayBuffer;
       ignored: string[];
     }
   | { kind: "error"; message: string };
@@ -54,13 +55,29 @@ function csvToTsv(csv: string, includeHeader: boolean): string {
   return (includeHeader ? rows : rows.slice(1)).map(formatTsvRow).join("\r\n");
 }
 
-function download(text: string, name: string, type: string): void {
-  const blob = new Blob([text], { type });
+function download(body: string | ArrayBuffer, name: string, type: string): void {
+  const blob = new Blob([body], { type });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = name;
   a.click();
   URL.revokeObjectURL(a.href);
+}
+
+/**
+ * ワーカーから届いたバイト列を文字列にする。数百MBでは復号だけで1秒近くかかるため、
+ * コピーを押したときにだけ行い、同じ結果に対しては1度きりにする。
+ * (TextDecoder は先頭の BOM を落とすので、得られるのは BOM 無しの本文。)
+ */
+function useCsvText(csv: ArrayBuffer | null): () => string {
+  const cache = useRef<{ csv: ArrayBuffer | null; text: string }>({ csv: null, text: "" });
+  return useCallback(() => {
+    if (csv === null) return "";
+    if (cache.current.csv !== csv) {
+      cache.current = { csv, text: new TextDecoder("utf-8").decode(csv) };
+    }
+    return cache.current.text;
+  }, [csv]);
 }
 
 /** 手元の CSV に条件を当てて結果を見せる枠。走査はワーカーで行う。 */
@@ -148,6 +165,7 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
   };
 
   const done = state.kind === "done" ? state : null;
+  const csvText = useCsvText(done?.csv ?? null);
   const totalPages = done === null ? 1 : Math.max(1, Math.ceil(done.rows.length / PAGE_SIZE));
   const start = page * PAGE_SIZE;
   const pageRows = done === null ? [] : done.rows.slice(start, start + PAGE_SIZE);
@@ -263,8 +281,7 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
 
   /** 全一致行の CSV。ヘッダを外すときは先頭の1行(と続く CRLF)だけを落とす。 */
   const allCsv = (includeHeader: boolean): string => {
-    if (done === null) return "";
-    const body = stripBom(done.csv);
+    const body = csvText();
     if (includeHeader) return body;
     // 列名の行は元の CSV の書き方のまま入っているので、長さは改行を探して測る。
     const nl = body.indexOf("\r\n");
@@ -351,7 +368,7 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
                 const sel = selectedRows();
                 copy(
                   sel === null
-                    ? csvToTsv(done.csv, withHeader)
+                    ? csvToTsv(csvText(), withHeader)
                     : headed(sel, withHeader).map(formatTsvRow).join("\r\n"),
                 );
               }}
@@ -366,7 +383,7 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
                 if (done === null) return;
                 const sel = selectedRows();
                 // ファイルは元のCSVと同じ形式(UTF-8 BOM付き・CRLF・ヘッダ行あり)で書き出す
-                const csv =
+                const csv: string | ArrayBuffer =
                   sel === null
                     ? done.csv
                     : "\ufeff" + headed(sel, true).map(formatCsvRow).join("\r\n") + "\r\n";

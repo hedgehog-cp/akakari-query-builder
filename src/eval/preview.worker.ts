@@ -27,7 +27,12 @@ export type PreviewMessage =
       /** 一致行が PREVIEW_ROWS を超えて rows が打ち切られたか。 */
       truncated: boolean;
       header: string[];
-      csv: string;
+      /**
+       * 一致した行を元のCSVと同じ形(UTF-8 BOM付き・CRLF)にしたバイト列。
+       * 文字列で渡すと postMessage が丸ごと複製する(数百MBで1秒を超える)。
+       * バイト列は所有権ごと移せるので複製が要らず、ダウンロードもこのまま書ける。
+       */
+      csv: ArrayBuffer;
       ignored: string[];
     }
   | { type: "error"; message: string };
@@ -46,8 +51,8 @@ const PREVIEW_ROWS = 10000;
  */
 const PROGRESS_INTERVAL_MS = 100;
 
-function post(msg: PreviewMessage): void {
-  (self as unknown as DedicatedWorkerGlobalScope).postMessage(msg);
+function post(msg: PreviewMessage, transfer?: Transferable[]): void {
+  (self as unknown as DedicatedWorkerGlobalScope).postMessage(msg, transfer ?? []);
 }
 
 self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
@@ -151,17 +156,20 @@ self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
     post({ type: "progress", scanned, matched, bytes });
 
     // 元のCSVと同じ形式で書き出す: UTF-8 BOM付き・CRLF・ヘッダ行あり
-    const csv = "﻿" + out.join("\r\n") + "\r\n";
-    post({
-      type: "done",
-      scanned,
-      matched,
-      rows: keptRows,
-      truncated: matched > keptRows.length,
-      header: csvHeader ?? header,
-      csv,
-      ignored: state.compiled?.ignored ?? [],
-    });
+    const csv = new TextEncoder().encode("﻿" + out.join("\r\n") + "\r\n");
+    post(
+      {
+        type: "done",
+        scanned,
+        matched,
+        rows: keptRows,
+        truncated: matched > keptRows.length,
+        header: csvHeader ?? header,
+        csv: csv.buffer,
+        ignored: state.compiled?.ignored ?? [],
+      },
+      [csv.buffer],
+    );
   } catch (err) {
     post({ type: "error", message: err instanceof Error ? err.message : String(err) });
   }
