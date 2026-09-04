@@ -4,6 +4,7 @@ import { BATTLE_LABEL, type Query } from "../model/types";
 import type { Column } from "../schema/catalog";
 import type { PreviewMessage } from "../eval/preview.worker";
 import { CsvParser, formatCsvRow, formatTsvRow, stripBom } from "../eval/csv";
+import type { BadEncoding } from "../eval/encoding";
 import { SectionToggle } from "./collapsible";
 
 type State =
@@ -15,6 +16,7 @@ type State =
       /** 読み終えたバイト数。進捗の分子。 */ bytes: number;
     }
   | { kind: "mismatch"; missing: string[]; extra: string[] }
+  | { kind: "bad-encoding"; encoding: BadEncoding }
   | {
       kind: "done";
       scanned: number;
@@ -100,6 +102,7 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
         setState({ kind: "running", scanned: m.scanned, matched: m.matched, bytes: m.bytes });
       else if (m.type === "header-mismatch")
         setState({ kind: "mismatch", missing: m.missing, extra: m.extra });
+      else if (m.type === "bad-encoding") setState({ kind: "bad-encoding", encoding: m.encoding });
       else if (m.type === "done") setState({ kind: "done", ...m });
       else setState({ kind: "error", message: m.message });
     };
@@ -403,6 +406,20 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
                   />
                 </div>
               )}
+            </div>
+          )}
+
+          {state.kind === "bad-encoding" && (
+            <div class="border border-red-400 bg-red-50 rounded p-2 text-xs">
+              <p class="text-red-700 font-bold">
+                {state.encoding === "shift_jis"
+                  ? "CSV の文字コードが Shift_JIS のようです。実行を中止しました。"
+                  : "CSV を UTF-8 として読めませんでした。実行を中止しました。"}
+              </p>
+              <p class="text-gray-600">
+                このツールは UTF-8 の CSV だけを扱います。UTF-8
+                で保存し直してから読み込んでください。
+              </p>
             </div>
           )}
 

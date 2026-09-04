@@ -2,6 +2,7 @@
 import type { Query } from "../model/types";
 import { compileQuery } from "./compile";
 import { CsvParser, formatCsvRow } from "./csv";
+import { detectBadEncoding, type BadEncoding } from "./encoding";
 
 /** 画面からワーカーへの依頼。 */
 export type PreviewRequest = { query: Query; header: string[]; file: File };
@@ -15,6 +16,8 @@ export type PreviewMessage =
       /** 読み終えたバイト数(File.size に対する進捗) */ bytes: number;
     }
   | { type: "header-mismatch"; missing: string[]; extra: string[] }
+  /** UTF-8 として読めないので中止した。 */
+  | { type: "bad-encoding"; encoding: BadEncoding }
   | {
       type: "done";
       scanned: number;
@@ -96,9 +99,20 @@ self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
       return true;
     };
 
+    let first = true;
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
+      if (first) {
+        first = false;
+        // 文字コード違いは復号の時点では止まらず、置換文字だらけの行になって
+        // ヘッダ不一致として現れる。原因が伝わらないので、先頭で見て断る。
+        const bad = detectBadEncoding(value, header);
+        if (bad !== null) {
+          post({ type: "bad-encoding", encoding: bad });
+          return;
+        }
+      }
       bytes += value.byteLength;
       // stream: true でチャンク境界にまたがる多バイト文字を持ち越す
       if (!handle(parser.push(decoder.decode(value, { stream: true })))) return;
