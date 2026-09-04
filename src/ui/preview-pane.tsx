@@ -101,6 +101,12 @@ function useCsvText(csv: ArrayBuffer[] | null): () => string {
 }
 
 /**
+ * 貼り付けた左端の列と、その右を流れる列との境。罫線ではなく影で引くのは、
+ * border-collapse では貼り付けた升目の罫線が一緒に流れてしまうため。
+ */
+const PINNED_EDGE = "shadow-[1px_0_0_0_var(--color-gray-300)]";
+
+/**
  * Shift を押しながらのホイールを横スクロールにする。列が百を超えるので、
  * 横に送る手段が要る。ブラウザ任せだと縦に流れるものがあるため自分で送る。
  */
@@ -280,10 +286,17 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
         onWheel={scrollSideways}
       >
         <table class="w-max text-xs border-collapse">
-          <thead class="bg-gray-200 sticky top-0 z-10">
+          {/* 見出しは上に、左端の列は横に貼り付ける。重なりは
+              左上の角 > 見出し > 左端の列 の順で、下を隠す側が上に来る。 */}
+          <thead class="bg-gray-200 sticky top-0 z-20">
             <tr>
-              {done.header.map((name) => (
-                <th key={name} class="px-1 text-left whitespace-nowrap font-bold">
+              {done.header.map((name, j) => (
+                <th
+                  key={name}
+                  class={`px-1 text-left whitespace-nowrap font-bold ${
+                    j === 0 ? `sticky left-0 z-30 bg-gray-200 ${PINNED_EDGE}` : ""
+                  }`}
+                >
                   {name}
                 </th>
               ))}
@@ -300,11 +313,20 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
               const node = (
                 <tr
                   key={index}
-                  class={`cursor-pointer ${on ? "bg-emp-2" : "odd:bg-gray-50/50 hover:bg-emp-4/60"}`}
+                  // 行の色は透かさずに塗る。左端の列がこの色を受け継ぐので、
+                  // 透けていると下を流れる列の字が透けて見えてしまう。
+                  class={`cursor-pointer ${
+                    on ? "bg-emp-2" : "bg-bg-panel odd:bg-gray-50 hover:bg-emp-4"
+                  }`}
                   onMouseDown={(e) => selectRow(e as MouseEvent, index)}
                 >
                   {r.map((v, j) => (
-                    <td key={j} class="px-1 whitespace-nowrap">
+                    <td
+                      key={j}
+                      class={`px-1 whitespace-nowrap ${
+                        j === 0 ? `sticky left-0 z-10 bg-inherit ${PINNED_EDGE}` : ""
+                      }`}
+                    >
                       {v}
                     </td>
                   ))}
