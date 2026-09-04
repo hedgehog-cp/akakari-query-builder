@@ -46,10 +46,10 @@ function nameList(names: string[]): string {
  * ワーカー側で CSV と TSV の2本を作ると、数十万行規模では巨大な文字列を
  * 二重に抱えることになるため、TSV はコピーを押したときにここで作る。
  */
-function csvToTsv(csv: string): string {
+function csvToTsv(csv: string, includeHeader: boolean): string {
   const parser = new CsvParser();
   const rows = [...parser.push(csv), ...parser.flush()];
-  return rows.map(formatTsvRow).join("\r\n");
+  return (includeHeader ? rows : rows.slice(1)).map(formatTsvRow).join("\r\n");
 }
 
 function download(text: string, name: string, type: string): void {
@@ -68,6 +68,8 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
   const [page, setPage] = useState(0);
   const [dragOver, setDragOver] = useState(false);
   const [copied, setCopied] = useState(false);
+  /** コピーする文字列にヘッダ行を含めるか。表計算へ継ぎ足すときに外せるようにした。 */
+  const [withHeader, setWithHeader] = useState(true);
   /** 選択中の行(done.rows のインデックス)。Shift の起点は anchor。 */
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [anchor, setAnchor] = useState<number | null>(null);
@@ -246,11 +248,21 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
     );
   }, [done, page, selected, selectRow]);
 
-  /** 選択行(ヘッダ付き)。選択が空のときは null を返し、呼び出し側で全件を使う。 */
-  const selectedTable = (): string[][] | null => {
+  /** 選択行。選択が空のときは null を返し、呼び出し側で全件を使う。 */
+  const selectedRows = (): string[][] | null => {
     if (done === null || selected.size === 0) return null;
-    const rows = [...selected].sort((a, b) => a - b).map((i) => done.rows[i]);
-    return [done.header, ...rows];
+    return [...selected].sort((a, b) => a - b).map((i) => done.rows[i]);
+  };
+
+  /** 選択行にヘッダを付けた表。ダウンロードは付けたまま(読み込み直せる形を保つ)。 */
+  const headed = (rows: string[][], includeHeader: boolean): string[][] =>
+    includeHeader && done !== null ? [done.header, ...rows] : rows;
+
+  /** 全一致行の CSV。ヘッダを外すときは先頭の1行(と続く CRLF)だけを落とす。 */
+  const allCsv = (includeHeader: boolean): string => {
+    if (done === null) return "";
+    const body = stripBom(done.csv);
+    return includeHeader ? body : body.slice(formatCsvRow(done.header).length + 2);
   };
 
   const suffix = selected.size > 0 ? `(選択 ${selected.size} 行)` : "";
@@ -300,14 +312,26 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
           )}
 
           <div class="flex flex-wrap items-center gap-2">
+            <label class="flex items-center gap-1 text-xs text-gray-600 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={withHeader}
+                onChange={(e) => setWithHeader((e.target as HTMLInputElement).checked)}
+              />
+              ヘッダを含める
+            </label>
             <button
               type="button"
               class="border border-gray-300 rounded px-2 py-0.5 hover:bg-emp-4 disabled:opacity-40"
               disabled={done === null}
               onClick={() => {
                 if (done === null) return;
-                const sel = selectedTable();
-                copy(sel === null ? stripBom(done.csv) : sel.map(formatCsvRow).join("\r\n"));
+                const sel = selectedRows();
+                copy(
+                  sel === null
+                    ? allCsv(withHeader)
+                    : headed(sel, withHeader).map(formatCsvRow).join("\r\n"),
+                );
               }}
             >
               CSVでコピー{suffix}
@@ -318,8 +342,12 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
               disabled={done === null}
               onClick={() => {
                 if (done === null) return;
-                const sel = selectedTable();
-                copy(sel === null ? csvToTsv(done.csv) : sel.map(formatTsvRow).join("\r\n"));
+                const sel = selectedRows();
+                copy(
+                  sel === null
+                    ? csvToTsv(done.csv, withHeader)
+                    : headed(sel, withHeader).map(formatTsvRow).join("\r\n"),
+                );
               }}
             >
               TSVでコピー{suffix}
@@ -330,10 +358,12 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
               disabled={done === null}
               onClick={() => {
                 if (done === null) return;
-                const sel = selectedTable();
-                // ファイルは元のCSVと同じ形式(UTF-8 BOM付き・CRLF)で書き出す
+                const sel = selectedRows();
+                // ファイルは元のCSVと同じ形式(UTF-8 BOM付き・CRLF・ヘッダ行あり)で書き出す
                 const csv =
-                  sel === null ? done.csv : "\ufeff" + sel.map(formatCsvRow).join("\r\n") + "\r\n";
+                  sel === null
+                    ? done.csv
+                    : "\ufeff" + headed(sel, true).map(formatCsvRow).join("\r\n") + "\r\n";
                 download(csv, "filtered.csv", "text/csv;charset=utf-8");
               }}
             >
