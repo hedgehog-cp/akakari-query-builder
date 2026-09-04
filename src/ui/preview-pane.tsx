@@ -1,4 +1,3 @@
-import type { VNode } from "preact";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { BATTLE_LABEL, type Query } from "../model/types";
 import type { Column } from "../schema/catalog";
@@ -100,12 +99,69 @@ function useCsvText(csv: ArrayBuffer[] | null): () => string {
   }, [csv]);
 }
 
+/** 表のうち実際に作る範囲。行も列も、見えている分とその少し外だけを作る。 */
+type Window = { rowFirst: number; rowLast: number; colFirst: number; colLast: number };
+
+function sameWindow(a: Window, b: Window): boolean {
+  return (
+    a.rowFirst === b.rowFirst &&
+    a.rowLast === b.rowLast &&
+    a.colFirst === b.colFirst &&
+    a.colLast === b.colLast
+  );
+}
+
+/**
+ * 見えている範囲から、作る行と列を決める。
+ *
+ * 1ページは200行×百数十列で、素直に作ると升目が3万を超える。作る数がそのまま
+ * ページを繰る待ち時間になるので、画面に入る分(と少しの余分)だけを作る。
+ * 残りは、間を空ける升目1つで場所だけ取っておく。
+ */
+function windowOf(el: HTMLElement, offsets: number[], rowCount: number): Window {
+  const rowFirst = Math.max(0, Math.floor(el.scrollTop / ROW_HEIGHT) - ROW_MARGIN);
+  const rowLast = Math.min(
+    rowCount - 1,
+    Math.ceil((el.scrollTop + el.clientHeight) / ROW_HEIGHT) + ROW_MARGIN,
+  );
+  const left = el.scrollLeft;
+  const right = left + el.clientWidth;
+  // 左端の列は貼り付けてあるので、探すのは2列目から。
+  let colFirst = offsets.length - 1;
+  let colLast = 1;
+  for (let j = 1; j < offsets.length - 1; j++) {
+    if (offsets[j + 1] > left && offsets[j] < right) {
+      if (j < colFirst) colFirst = j;
+      if (j > colLast) colLast = j;
+    }
+  }
+  return {
+    rowFirst,
+    rowLast,
+    colFirst: Math.max(1, colFirst - COL_MARGIN),
+    colLast: Math.min(offsets.length - 2, colLast + COL_MARGIN),
+  };
+}
+
 /** canvas に渡す字の指定。font 一括の値を返さないブラウザのために組み立て直す。 */
 function fontOf(el: Element): string {
   const style = getComputedStyle(el);
   if (style.font !== "") return style.font;
   return `${style.fontWeight} ${style.fontSize}/${style.lineHeight} ${style.fontFamily}`;
 }
+
+/**
+ * 表の1行の高さ(px)。行の位置を数で出せるように決め打ちにする。
+ * 中身は1行の字なので、この高さで収まる。
+ */
+const ROW_HEIGHT = 20;
+
+/**
+ * 画面の外にも作っておく行数と列数。少しはみ出して持っておくと、
+ * 送るたびに作り直さずに済む。
+ */
+const ROW_MARGIN = 10;
+const COL_MARGIN = 4;
 
 /** 升目の左右の余白(px-1 の2つぶん)。測った字幅にこれを足して列の幅にする。 */
 const CELL_PADDING = 9;
@@ -278,6 +334,9 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
   const goPage = (next: number) => {
     setPage(next);
     clearSelection();
+    // ページを繰ったら先頭から見せる。縦の位置が残っていると、
+    // 作る行を決める計算も前のページの位置のままになる。
+    if (scrollRef.current !== null) scrollRef.current.scrollTop = 0;
   };
 
   // 選択と起点は ref からも読めるようにしておく。下の selectRow を
@@ -315,21 +374,56 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
   // 前回のものを返す。素直に毎回作り直すと、1行クリックするたびに表の全セルぶんの
   // vnode を作って比べることになり、選択が目に見えて遅れる。
   // 列の幅。結果ごとに1度だけ測り、以降のページはこの幅で描く。
-  const tableRef = useRef<HTMLTableElement>(null);
+  // 字幅は、字の指定だけを同じにした見えない見本から読む(本体を測る必要はない)。
+  const probeRef = useRef<HTMLTableElement>(null);
   const [widths, setWidths] = useState<{ done: unknown; px: number[] } | null>(null);
   useLayoutEffect(() => {
     if (done === null || widths?.done === done) return;
-    const el = tableRef.current;
+    const el = probeRef.current;
     if (el === null) return;
-    // 見出しは太字で幅が違うので、実際に描かれている升目から字の指定を読む。
     const head = fontOf(el.querySelector("th") ?? el);
     const body = fontOf(el.querySelector("td") ?? el);
     setWidths({ done, px: measureColumns(done.header, done.rows, head, body) });
   }, [done, widths]);
   const colWidths = done !== null && widths?.done === done ? widths.px : null;
 
-  const rowCache = useRef(new Map<number, { on: boolean; node: VNode }>());
-  const rowCacheKey = useRef<{ done: unknown; page: number }>({ done: null, page: -1 });
+  /** 列の左端の位置。境目を探すのに使う。 */
+  const colOffsets = useMemo(() => {
+    if (colWidths === null) return null;
+    const xs = [0];
+    for (const w of colWidths) xs.push(xs[xs.length - 1] + w);
+    return xs;
+  }, [colWidths]);
+
+  // 表を送るたびに、作る範囲を出し直す。範囲が変わらないうちは作り直さない。
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [window_, setWindow] = useState<Window>({
+    rowFirst: 0,
+    rowLast: -1,
+    colFirst: 1,
+    colLast: 0,
+  });
+  const windowRef = useRef(window_);
+  const pending = useRef(false);
+  const syncWindow = useCallback(() => {
+    const el = scrollRef.current;
+    if (el === null || colOffsets === null || done === null) return;
+    const rows = Math.min(PAGE_SIZE, done.rows.length - page * PAGE_SIZE);
+    const next = windowOf(el, colOffsets, rows);
+    if (sameWindow(windowRef.current, next)) return;
+    windowRef.current = next;
+    setWindow(next);
+  }, [colOffsets, done, page]);
+  // 送っている間は毎回ではなく、次に描く直前に1度だけ数え直す。
+  const onScroll = () => {
+    if (pending.current) return;
+    pending.current = true;
+    requestAnimationFrame(() => {
+      pending.current = false;
+      syncWindow();
+    });
+  };
+  useLayoutEffect(syncWindow, [syncWindow]);
 
   // 表は数万セルあり、素直に書くと開閉やコピー通知など無関係な再描画のたびに
   // Preact がその全セルを差分計算してしまう。行データ・ページ・選択が変わらない
@@ -338,86 +432,125 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
     if (done === null) return null;
     const from = page * PAGE_SIZE;
     const rows = done.rows.slice(from, from + PAGE_SIZE);
-    // 行の中身そのものが変わる(別のCSV・別ページ)ときはキャッシュを捨てる。
-    if (rowCacheKey.current.done !== done || rowCacheKey.current.page !== page) {
-      rowCache.current.clear();
-      rowCacheKey.current = { done, page };
-    }
+    const w = window_;
+    // 幅がまだ測れていない間は、字幅を読むための見本だけを描く。
+    const ready = colWidths !== null;
+    const header = done.header;
+    /** 左端の列・間を空ける升目・見えている列、の順に並べる。 */
+    const cellsOf = <T,>(make: (j: number) => T, gap: T): T[] => {
+      const out = [make(0)];
+      if (w.colFirst > 1) out.push(gap);
+      for (let j = w.colFirst; j <= w.colLast; j++) out.push(make(j));
+      return out;
+    };
+    const above = w.rowFirst * ROW_HEIGHT;
+    const below = Math.max(0, (rows.length - 1 - w.rowLast) * ROW_HEIGHT);
+
     return (
-      // 列が多いため横スクロールはこのコンテナだけが持つ(ページ全体を
-      // 横に伸ばさない)。1ページぶんしか描画しないので列幅は内容なりでよい。
+      // 列が多いため横スクロールはこのコンテナだけが持つ(ページ全体を横に伸ばさない)。
       <div
+        ref={scrollRef}
         class="contain-layout overflow-auto max-h-[600px] border border-gray-300 rounded"
         onWheel={scrollSideways}
+        onScroll={onScroll}
       >
+        {/* 字幅を測るためだけの見本。見えないが、字の指定は表の升目と同じにする。 */}
         <table
-          ref={tableRef}
-          class={`text-xs border-collapse ${colWidths === null ? "w-max" : "table-fixed"}`}
-          style={
-            colWidths === null ? undefined : { width: `${colWidths.reduce((a, b) => a + b, 0)}px` }
-          }
+          ref={probeRef}
+          aria-hidden="true"
+          class="text-xs absolute invisible pointer-events-none"
         >
-          {colWidths !== null && (
-            <colgroup>
-              {colWidths.map((w, j) => (
-                <col key={j} style={{ width: `${w}px` }} />
-              ))}
-            </colgroup>
-          )}
-          {/* 見出しは上に、左端の列は横に貼り付ける。重なりは
-              左上の角 > 見出し > 左端の列 の順で、下を隠す側が上に来る。 */}
-          <thead class="bg-gray-200 sticky top-0 z-20">
+          <tbody>
             <tr>
-              {done.header.map((name, j) => (
-                <th
-                  key={name}
-                  class={`px-1 text-left whitespace-nowrap font-bold ${
-                    j === 0 ? "sticky left-0 z-30 bg-gray-200 pinned-col" : ""
-                  }`}
-                >
-                  {name}
-                </th>
-              ))}
+              <th class="font-bold">0</th>
+              <td>0</td>
             </tr>
-          </thead>
-          {/* 行クリックで選択。Ctrl(Cmd)で追加/解除、Shiftで範囲。
-              Shiftクリックでの文字列選択が邪魔になるので select-none。 */}
-          <tbody class="select-none">
-            {rows.map((r, i) => {
-              const index = from + i;
-              const on = selected.has(index);
-              const cached = rowCache.current.get(index);
-              if (cached !== undefined && cached.on === on) return cached.node;
-              const node = (
-                <tr
-                  key={index}
-                  // 行の色は透かさずに塗る。左端の列がこの色を受け継ぐので、
-                  // 透けていると下を流れる列の字が透けて見えてしまう。
-                  class={`lazy-row cursor-pointer ${
-                    on ? "bg-emp-2" : "bg-bg-panel odd:bg-gray-50 hover:bg-emp-4"
-                  }`}
-                  onMouseDown={(e) => selectRow(e as MouseEvent, index)}
-                >
-                  {r.map((v, j) => (
-                    <td
-                      key={j}
-                      class={`px-1 whitespace-nowrap overflow-hidden text-ellipsis ${
-                        j === 0 ? "sticky left-0 z-10 bg-inherit pinned-col" : ""
-                      }`}
-                    >
-                      {v}
-                    </td>
-                  ))}
-                </tr>
-              );
-              rowCache.current.set(index, { on, node });
-              return node;
-            })}
           </tbody>
         </table>
+        {ready && (
+          // 罫線を離した表にするのは、貼り付けた列の境の影が
+          // border-collapse では塗られないため。間隔は 0 にして見た目は変えない。
+          <table
+            class="text-xs table-fixed border-separate border-spacing-0"
+            style={{ width: `${colWidths.reduce((a, b) => a + b, 0)}px` }}
+          >
+            <colgroup>
+              {colWidths.map((width, j) => (
+                <col key={j} style={{ width: `${width}px` }} />
+              ))}
+            </colgroup>
+            {/* 見出しは上に、左端の列は横に貼り付ける。重なりは
+                左上の角 > 見出し > 左端の列 の順で、下を隠す側が上に来る。 */}
+            <thead class="bg-gray-200 sticky top-0 z-20">
+              <tr>
+                {cellsOf(
+                  (j) => (
+                    <th
+                      key={header[j]}
+                      class={`px-1 text-left whitespace-nowrap font-bold overflow-hidden text-ellipsis ${
+                        j === 0 ? "sticky left-0 z-30 bg-gray-200 pinned-col" : ""
+                      }`}
+                    >
+                      {header[j]}
+                    </th>
+                  ),
+                  <th key="gap" colSpan={w.colFirst - 1} />,
+                )}
+              </tr>
+            </thead>
+            {/* 行クリックで選択。Ctrl(Cmd)で追加/解除、Shiftで範囲。
+                Shiftクリックでの文字列選択が邪魔になるので select-none。 */}
+            <tbody class="select-none">
+              {above > 0 && (
+                <tr style={{ height: `${above}px` }}>
+                  <td colSpan={header.length} />
+                </tr>
+              )}
+              {rows.slice(w.rowFirst, w.rowLast + 1).map((r, i) => {
+                const index = from + w.rowFirst + i;
+                const on = selected.has(index);
+                return (
+                  <tr
+                    key={index}
+                    style={{ height: `${ROW_HEIGHT}px` }}
+                    // 縞は行の番号で決める。作る行を絞っているので、tbody の中の
+                    // 並び(odd/even)で決めると送るたびに縞がずれる。
+                    // 色を透かさないのは、左端の列がこの色を受け継ぐため。透けていると
+                    // 下を流れる列の字が見えてしまう。
+                    class={`cursor-pointer ${
+                      on
+                        ? "bg-emp-2"
+                        : `hover:bg-emp-4 ${index % 2 === 1 ? "bg-gray-50" : "bg-bg-panel"}`
+                    }`}
+                    onMouseDown={(e) => selectRow(e as MouseEvent, index)}
+                  >
+                    {cellsOf(
+                      (j) => (
+                        <td
+                          key={j}
+                          class={`px-1 whitespace-nowrap overflow-hidden text-ellipsis ${
+                            j === 0 ? "sticky left-0 z-10 bg-inherit pinned-col" : ""
+                          }`}
+                        >
+                          {r[j]}
+                        </td>
+                      ),
+                      <td key="gap" colSpan={w.colFirst - 1} />,
+                    )}
+                  </tr>
+                );
+              })}
+              {below > 0 && (
+                <tr style={{ height: `${below}px` }}>
+                  <td colSpan={header.length} />
+                </tr>
+              )}
+            </tbody>
+          </table>
+        )}
       </div>
     );
-  }, [done, page, colWidths, selected, selectRow]);
+  }, [done, page, colWidths, window_, selected, selectRow, onScroll]);
 
   /** 選択行。選択が空のときは null を返し、呼び出し側で全件を使う。 */
   const selectedRows = (): string[][] | null => {
