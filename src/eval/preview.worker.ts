@@ -11,7 +11,8 @@ export type PreviewRequest = {
   query: Query;
   /** CSV の列名。 */
   csvHeader: string[];
-  file: File;
+  /** 走査の対象。ファイルのほか、前の走査の結果を渡して更に絞ることもできる。 */
+  file: Blob;
   /** 担当するバイト範囲 [start, end)。 */
   start: number;
   end: number;

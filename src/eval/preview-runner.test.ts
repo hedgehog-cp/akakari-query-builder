@@ -69,7 +69,7 @@ function makeCsv(rows: number): { file: File; matched: number } {
   return { file: new File([text], "赤仮砲撃戦.csv"), matched };
 }
 
-function run(file: File, q: Query, header = HEADER): Promise<PreviewEvent[]> {
+function run(file: Blob, q: Query, header = HEADER): Promise<PreviewEvent[]> {
   return new Promise((resolve) => {
     const events: PreviewEvent[] = [];
     runPreview({
@@ -110,6 +110,27 @@ describe("runPreview", () => {
     expect(out.length - 2).toBe(matched); // 末尾の改行のぶん
     expect(out[1].startsWith("0,")).toBe(true);
     expect(out.at(-2)?.startsWith("139998,")).toBe(true); // 3の倍数の行だけが残る
+  });
+
+  it("走査の結果をそのまま次の対象にできる", async () => {
+    const { file, matched } = makeCsv(2000);
+    const first = (await run(file, query("攻撃艦", "自軍"))).at(-1);
+    expect(first?.type).toBe("done");
+    if (first?.type !== "done") return;
+
+    // 結果は元のCSVと同じ形なので、そのまま走査に掛けられる。
+    const second = (await run(new Blob(first.csv), query("攻撃艦", "自軍"))).at(-1);
+    expect(second?.type).toBe("done");
+    if (second?.type !== "done") return;
+    expect(second.scanned).toBe(matched);
+    expect(second.matched).toBe(matched);
+    expect(second.rows).toEqual(first.rows);
+
+    // 更に絞れば、そのぶんだけ残る。
+    const third = (await run(new Blob(first.csv), query("攻撃艦.名前", "艦娘1・・・"))).at(-1);
+    expect(third?.type).toBe("done");
+    if (third?.type !== "done") return;
+    expect(third.matched).toBeLessThan(second.matched);
   });
 
   it("列名が合わない CSV は走らせずに知らせる", async () => {

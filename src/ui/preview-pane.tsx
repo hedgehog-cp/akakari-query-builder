@@ -30,6 +30,24 @@ type State =
     }
   | { kind: "error"; message: string };
 
+/**
+ * 走査の対象。落としたファイルのほか、直前の結果を対象にして更に絞ることもできる。
+ * 結果は元のCSVと同じ形のバイト列なので、そのまま次の走査に掛けられる。
+ */
+type Source = {
+  blob: Blob;
+  /** 画面に出す名前。 */
+  label: string;
+  /** 直前の結果を対象にしているか。 */
+  narrowed: boolean;
+};
+
+/**
+ * 条件を変えてから自動で走らせ直すまでの待ち。条件は打鍵のたびに変わるので、
+ * 手が止まるのを待ってからまとめて1回にする。
+ */
+const AUTO_RUN_DELAY_MS = 400;
+
 /** 1ページの表示行数。一度に描く量と、ページを繰る手数の釣り合いで決めた。 */
 const PAGE_SIZE = 200;
 
@@ -82,9 +100,23 @@ function useCsvText(csv: ArrayBuffer[] | null): () => string {
   }, [csv]);
 }
 
+/**
+ * Shift を押しながらのホイールを横スクロールにする。列が百を超えるので、
+ * 横に送る手段が要る。ブラウザ任せだと縦に流れるものがあるため自分で送る。
+ */
+function scrollSideways(e: WheelEvent): void {
+  if (!e.shiftKey || e.deltaY === 0) return;
+  const el = e.currentTarget as HTMLElement;
+  if (el.scrollWidth <= el.clientWidth) return;
+  el.scrollLeft += e.deltaY;
+  e.preventDefault();
+}
+
 /** 手元の CSV に条件を当てて結果を見せる枠。走査はワーカーで行う。 */
 export function PreviewPane(props: { query: Query; columns: Column[] }) {
   const [file, setFile] = useState<File | null>(null);
+  /** 次の走査を掛ける先。既定は落としたファイルそのもの。 */
+  const [source, setSource] = useState<Source | null>(null);
   const [state, setState] = useState<State>({ kind: "idle" });
   const [page, setPage] = useState(0);
   const [dragOver, setDragOver] = useState(false);
@@ -95,6 +127,8 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [anchor, setAnchor] = useState<number | null>(null);
   const [open, setOpen] = useState(true);
+  /** 条件を変えるたびに走らせ直すか。 */
+  const [autoRun, setAutoRun] = useState(false);
   /** 走っている走査を止める手。次の走査を始める前と、枠を閉じるときに呼ぶ。 */
   const stopRef = useRef<(() => void) | null>(null);
 
@@ -107,7 +141,7 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
     setAnchor(null);
   };
 
-  const run = (target: File) => {
+  const run = (target: Source) => {
     stopRef.current?.();
     setPage(0);
     clearSelection();
@@ -115,7 +149,7 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
     stopRef.current = runPreview({
       query: props.query,
       header: props.columns.map((c) => c.name),
-      file: target,
+      file: target.blob,
       onEvent: (m) => {
         if (m.type === "progress")
           setState({ kind: "running", scanned: m.scanned, matched: m.matched, bytes: m.bytes });
@@ -136,14 +170,28 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
   // 成功済み(done)のときは自動再実行しない。数十万行の走査を切り替えのたびに
   // 始めてしまうため、そちらは「再実行」ボタンに任せる。
   useEffect(() => {
-    if (state.kind === "mismatch" && file !== null) run(file);
+    if (state.kind === "mismatch" && source !== null) run(source);
   }, [props.columns]);
 
-  // 受け取った時点で実行する。条件を編集するたびの自動再実行はしない
-  // (CSV は数十万行に達することがあり、そのたびに走らせると重すぎるため)。
+  // 条件を変えたら走らせ直す。数十万行の走査を打鍵のたびに始めないよう、
+  // 手が止まってからまとめて1回にする。既定では走らせず、チェックで有効にする。
+  const sourceRef = useRef<Source | null>(null);
+  sourceRef.current = source;
+  useEffect(() => {
+    if (!autoRun) return;
+    const timer = setTimeout(() => {
+      const target = sourceRef.current;
+      if (target !== null) run(target);
+    }, AUTO_RUN_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [props.query, autoRun]);
+
+  /** 受け取った時点で実行する。 */
   const accept = (f: File) => {
     setFile(f);
-    run(f);
+    const next: Source = { blob: f, label: f.name, narrowed: false };
+    setSource(next);
+    run(next);
   };
 
   const pickFile = () => {
@@ -227,7 +275,10 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
     return (
       // 列が多いため横スクロールはこのコンテナだけが持つ(ページ全体を
       // 横に伸ばさない)。1ページぶんしか描画しないので列幅は内容なりでよい。
-      <div class="contain-layout overflow-auto max-h-[600px] border border-gray-300 rounded">
+      <div
+        class="contain-layout overflow-auto max-h-[600px] border border-gray-300 rounded"
+        onWheel={scrollSideways}
+      >
         <table class="w-max text-xs border-collapse">
           <thead class="bg-gray-200 sticky top-0 z-10">
             <tr>
@@ -291,8 +342,8 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
 
   /** 走査の進捗(%)。ファイルの大きさが分からないときは帯も割合も出さない。 */
   const percent =
-    state.kind === "running" && file !== null && file.size > 0
-      ? Math.min(100, Math.round((state.bytes / file.size) * 100))
+    state.kind === "running" && source !== null && source.blob.size > 0
+      ? Math.min(100, Math.round((state.bytes / source.blob.size) * 100))
       : null;
 
   return (
@@ -322,9 +373,9 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
 
         {/* ファイル名・件数もボタンも開閉の内側に置く。畳んだときは見出しの1行だけを残す。 */}
         <div class={open ? "mt-2 grid gap-2" : "collapsed"}>
-          {(file !== null || done !== null) && (
+          {(source !== null || done !== null) && (
             <div class="flex flex-wrap items-baseline gap-4 text-xs text-gray-500">
-              {file !== null && <span>{file.name}</span>}
+              {source !== null && <span>{source.label}</span>}
               {done !== null && (
                 <span>
                   合致 {done.matched.toLocaleString()} 行 / 全 {done.scanned.toLocaleString()} 行
@@ -400,16 +451,54 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
                 選択を解除
               </button>
             )}
-            {file !== null && (
+            {source !== null && (
               <button
                 type="button"
                 class="border border-emp-1 rounded px-2 py-0.5 hover:bg-emp-4"
-                onClick={() => run(file)}
+                onClick={() => run(source)}
               >
                 再実行
               </button>
             )}
+            {done !== null && done.matched > 0 && source !== null && !source.narrowed && (
+              <button
+                type="button"
+                class="border border-gray-300 rounded px-2 py-0.5 hover:bg-emp-4"
+                onClick={() => {
+                  setSource({
+                    blob: new Blob(done.csv),
+                    label: `${file?.name ?? source.label} を絞り込んだ ${done.matched.toLocaleString()} 行`,
+                    narrowed: true,
+                  });
+                }}
+              >
+                この結果を次の対象にする
+              </button>
+            )}
+            <label class="flex items-center gap-1 text-xs text-gray-600 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={autoRun}
+                onChange={(e) => setAutoRun((e.target as HTMLInputElement).checked)}
+              />
+              条件を変えたら自動で実行
+            </label>
           </div>
+          {source !== null && source.narrowed && (
+            <p class="text-xs text-emp-1 bg-emp-4 rounded px-2 py-1 flex flex-wrap items-center gap-2">
+              いまはこの結果を対象に実行します。条件を緩めても、ここに残っていない行は戻りません。
+              {file !== null && (
+                <button
+                  type="button"
+                  class="underline"
+                  onClick={() => setSource({ blob: file, label: file.name, narrowed: false })}
+                >
+                  ファイル全体に戻す
+                </button>
+              )}
+            </p>
+          )}
+
           {state.kind === "running" && (
             <div class="grid gap-1">
               <p class="text-xs">

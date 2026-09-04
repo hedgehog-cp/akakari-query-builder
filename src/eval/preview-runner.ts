@@ -60,7 +60,8 @@ export function runPreview(opts: {
   query: Query;
   /** 選択中の戦闘種別の列名。CSV がこれと合うかを先に確かめる。 */
   header: string[];
-  file: File;
+  /** 走査の対象。ファイルのほか、前の走査の結果を渡して更に絞ることもできる。 */
+  file: Blob;
   onEvent: (e: PreviewEvent) => void;
   /** ワーカーの作り方。省略すると既定のワーカーを立てる。 */
   spawn?: () => Worker;
