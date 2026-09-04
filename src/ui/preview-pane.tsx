@@ -1,5 +1,5 @@
 import type { VNode } from "preact";
-import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { BATTLE_LABEL, type Query } from "../model/types";
 import type { Column } from "../schema/catalog";
 import { runPreview } from "../eval/preview-runner";
@@ -100,11 +100,62 @@ function useCsvText(csv: ArrayBuffer[] | null): () => string {
   }, [csv]);
 }
 
+/** canvas に渡す字の指定。font 一括の値を返さないブラウザのために組み立て直す。 */
+function fontOf(el: Element): string {
+  const style = getComputedStyle(el);
+  if (style.font !== "") return style.font;
+  return `${style.fontWeight} ${style.fontSize}/${style.lineHeight} ${style.fontFamily}`;
+}
+
+/** 升目の左右の余白(px-1 の2つぶん)。測った字幅にこれを足して列の幅にする。 */
+const CELL_PADDING = 9;
+
+/** 幅を測るためだけの canvas。作り直さずに使い回す。 */
+let ruler: CanvasRenderingContext2D | null = null;
+
+/** 全角は2文字ぶんとして数える。どの値が一番長いかの当たりを付けるのに使う。 */
+function weightedLength(s: string): number {
+  let n = 0;
+  for (let i = 0; i < s.length; i++) n += s.charCodeAt(i) < 0x80 ? 1 : 2;
+  return n;
+}
+
 /**
- * 貼り付けた左端の列と、その右を流れる列との境。罫線ではなく影で引くのは、
- * border-collapse では貼り付けた升目の罫線が一緒に流れてしまうため。
+ * 列ごとの幅(px)を決める。
+ *
+ * 幅を決めずに表を描くと、ブラウザは列の幅を決めるために升目を全部測る。1ページは
+ * 200行×百数十列あるので、これがページを繰るたびの待ち時間になる。こちらで幅を
+ * 決めて table-layout: fixed にすれば、その測り直しが無くなる。
+ *
+ * 幅は表に出しうる行(先頭1万行)から取るので、表示中に字が切れることはない。
+ * 列ごとに一番長い値だけを実際の字幅で測る(全部測ると数百万回になる)。
  */
-const PINNED_EDGE = "shadow-[1px_0_0_0_var(--color-gray-300)]";
+function measureColumns(header: string[], rows: string[][], head: string, body: string): number[] {
+  if (ruler === null) ruler = document.createElement("canvas").getContext("2d");
+  const ctx = ruler;
+  if (ctx === null) return [];
+
+  const longest = header.map(() => "");
+  const lengths = header.map(() => -1);
+  for (const row of rows) {
+    for (let j = 0; j < row.length && j < header.length; j++) {
+      const n = weightedLength(row[j]);
+      if (n > lengths[j]) {
+        lengths[j] = n;
+        longest[j] = row[j];
+      }
+    }
+  }
+
+  ctx.font = head;
+  const widths = header.map((name) => ctx.measureText(name).width);
+  ctx.font = body;
+  return widths.map((w, j) =>
+    Math.ceil(
+      Math.max(w, longest[j] === "" ? 0 : ctx.measureText(longest[j]).width) + CELL_PADDING,
+    ),
+  );
+}
 
 /**
  * Shift を押しながらのホイールを横スクロールにする。列が百を超えるので、
@@ -263,6 +314,20 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
   // 差分計算を丸ごと省く。これを使い、選択の色が変わった行だけを作り直して他の行は
   // 前回のものを返す。素直に毎回作り直すと、1行クリックするたびに表の全セルぶんの
   // vnode を作って比べることになり、選択が目に見えて遅れる。
+  // 列の幅。結果ごとに1度だけ測り、以降のページはこの幅で描く。
+  const tableRef = useRef<HTMLTableElement>(null);
+  const [widths, setWidths] = useState<{ done: unknown; px: number[] } | null>(null);
+  useLayoutEffect(() => {
+    if (done === null || widths?.done === done) return;
+    const el = tableRef.current;
+    if (el === null) return;
+    // 見出しは太字で幅が違うので、実際に描かれている升目から字の指定を読む。
+    const head = fontOf(el.querySelector("th") ?? el);
+    const body = fontOf(el.querySelector("td") ?? el);
+    setWidths({ done, px: measureColumns(done.header, done.rows, head, body) });
+  }, [done, widths]);
+  const colWidths = done !== null && widths?.done === done ? widths.px : null;
+
   const rowCache = useRef(new Map<number, { on: boolean; node: VNode }>());
   const rowCacheKey = useRef<{ done: unknown; page: number }>({ done: null, page: -1 });
 
@@ -285,7 +350,20 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
         class="contain-layout overflow-auto max-h-[600px] border border-gray-300 rounded"
         onWheel={scrollSideways}
       >
-        <table class="w-max text-xs border-collapse">
+        <table
+          ref={tableRef}
+          class={`text-xs border-collapse ${colWidths === null ? "w-max" : "table-fixed"}`}
+          style={
+            colWidths === null ? undefined : { width: `${colWidths.reduce((a, b) => a + b, 0)}px` }
+          }
+        >
+          {colWidths !== null && (
+            <colgroup>
+              {colWidths.map((w, j) => (
+                <col key={j} style={{ width: `${w}px` }} />
+              ))}
+            </colgroup>
+          )}
           {/* 見出しは上に、左端の列は横に貼り付ける。重なりは
               左上の角 > 見出し > 左端の列 の順で、下を隠す側が上に来る。 */}
           <thead class="bg-gray-200 sticky top-0 z-20">
@@ -294,7 +372,7 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
                 <th
                   key={name}
                   class={`px-1 text-left whitespace-nowrap font-bold ${
-                    j === 0 ? `sticky left-0 z-30 bg-gray-200 ${PINNED_EDGE}` : ""
+                    j === 0 ? "sticky left-0 z-30 bg-gray-200 pinned-col" : ""
                   }`}
                 >
                   {name}
@@ -315,7 +393,7 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
                   key={index}
                   // 行の色は透かさずに塗る。左端の列がこの色を受け継ぐので、
                   // 透けていると下を流れる列の字が透けて見えてしまう。
-                  class={`cursor-pointer ${
+                  class={`lazy-row cursor-pointer ${
                     on ? "bg-emp-2" : "bg-bg-panel odd:bg-gray-50 hover:bg-emp-4"
                   }`}
                   onMouseDown={(e) => selectRow(e as MouseEvent, index)}
@@ -323,8 +401,8 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
                   {r.map((v, j) => (
                     <td
                       key={j}
-                      class={`px-1 whitespace-nowrap ${
-                        j === 0 ? `sticky left-0 z-10 bg-inherit ${PINNED_EDGE}` : ""
+                      class={`px-1 whitespace-nowrap overflow-hidden text-ellipsis ${
+                        j === 0 ? "sticky left-0 z-10 bg-inherit pinned-col" : ""
                       }`}
                     >
                       {v}
@@ -339,7 +417,7 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
         </table>
       </div>
     );
-  }, [done, page, selected, selectRow]);
+  }, [done, page, colWidths, selected, selectRow]);
 
   /** 選択行。選択が空のときは null を返し、呼び出し側で全件を使う。 */
   const selectedRows = (): string[][] | null => {
