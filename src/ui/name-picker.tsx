@@ -1,11 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
-import {
-  master,
-  equipTypeName,
-  isAbyssal,
-  shipTypeName,
-  ABYSSAL_MIN_SHIP_ID,
-} from "../master/load";
+import { master, equipTypeName, isAbyssal, shipTypeName } from "../master/load";
 import { EQUIP_GROUPS, inEquipGroup } from "../master/groups";
 import type { NameTarget } from "./name-target";
 
@@ -132,7 +126,7 @@ export function NamePicker(props: {
                     setTypeId(null);
                   }}
                 >
-                  {a ? `深海棲艦 (api_id ${ABYSSAL_MIN_SHIP_ID}以上)` : "自軍"}
+                  {a ? "深海棲艦" : "自軍"}
                 </button>
               ))}
         </div>
