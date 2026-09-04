@@ -79,6 +79,11 @@ export class CsvLineReader {
     if (start < n) this.pending += text.slice(start);
   }
 
+  /** 行の途中で止まっているか。範囲を分けて読むとき、続きが要るかの判断に使う。 */
+  get midLine(): boolean {
+    return this.pending !== "";
+  }
+
   /** 改行で終わっていない最後の行を吐き出す。 */
   flush(onLine: (line: string) => void): void {
     if (this.pending !== "") {

@@ -2,7 +2,7 @@ import type { VNode } from "preact";
 import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { BATTLE_LABEL, type Query } from "../model/types";
 import type { Column } from "../schema/catalog";
-import type { PreviewMessage } from "../eval/preview.worker";
+import { runPreview } from "../eval/preview-runner";
 import { CsvParser, formatCsvRow, formatTsvRow } from "../eval/csv";
 import type { BadEncoding } from "../eval/encoding";
 import { SectionToggle } from "./collapsible";
@@ -24,8 +24,8 @@ type State =
       rows: string[][];
       truncated: boolean;
       header: string[];
-      /** 一致した行の CSV(UTF-8 BOM付き・CRLF)。文字にするのは求められたときだけ。 */
-      csv: ArrayBuffer;
+      /** 一致した行の CSV(UTF-8 BOM付き・CRLF)。走査の範囲ごとに分かれている。 */
+      csv: ArrayBuffer[];
       ignored: string[];
     }
   | { kind: "error"; message: string };
@@ -55,8 +55,8 @@ function csvToTsv(csv: string, includeHeader: boolean): string {
   return (includeHeader ? rows : rows.slice(1)).map(formatTsvRow).join("\r\n");
 }
 
-function download(body: string | ArrayBuffer, name: string, type: string): void {
-  const blob = new Blob([body], { type });
+function download(body: string | ArrayBuffer[], name: string, type: string): void {
+  const blob = new Blob(Array.isArray(body) ? body : [body], { type });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = name;
@@ -69,12 +69,14 @@ function download(body: string | ArrayBuffer, name: string, type: string): void 
  * コピーを押したときにだけ行い、同じ結果に対しては1度きりにする。
  * (TextDecoder は先頭の BOM を落とすので、得られるのは BOM 無しの本文。)
  */
-function useCsvText(csv: ArrayBuffer | null): () => string {
-  const cache = useRef<{ csv: ArrayBuffer | null; text: string }>({ csv: null, text: "" });
+function useCsvText(csv: ArrayBuffer[] | null): () => string {
+  const cache = useRef<{ csv: ArrayBuffer[] | null; text: string }>({ csv: null, text: "" });
   return useCallback(() => {
     if (csv === null) return "";
     if (cache.current.csv !== csv) {
-      cache.current = { csv, text: new TextDecoder("utf-8").decode(csv) };
+      // 範囲の切れ目は行の切れ目なので、範囲ごとに復号してつなげてよい。
+      const dec = new TextDecoder("utf-8");
+      cache.current = { csv, text: csv.map((part) => dec.decode(part)).join("") };
     }
     return cache.current.text;
   }, [csv]);
@@ -93,9 +95,10 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [anchor, setAnchor] = useState<number | null>(null);
   const [open, setOpen] = useState(true);
-  const workerRef = useRef<Worker | null>(null);
+  /** 走っている走査を止める手。次の走査を始める前と、枠を閉じるときに呼ぶ。 */
+  const stopRef = useRef<(() => void) | null>(null);
 
-  useEffect(() => () => workerRef.current?.terminate(), []);
+  useEffect(() => () => stopRef.current?.(), []);
 
   const expectedFileName = `${BATTLE_LABEL[props.query.battle]}.csv`;
 
@@ -105,28 +108,24 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
   };
 
   const run = (target: File) => {
-    workerRef.current?.terminate();
-    const worker = new Worker(new URL("../eval/preview.worker.ts", import.meta.url), {
-      type: "module",
-    });
-    workerRef.current = worker;
+    stopRef.current?.();
     setPage(0);
     clearSelection();
     setState({ kind: "running", scanned: 0, matched: 0, bytes: 0 });
-    worker.onmessage = (e: MessageEvent<PreviewMessage>) => {
-      const m = e.data;
-      if (m.type === "progress")
-        setState({ kind: "running", scanned: m.scanned, matched: m.matched, bytes: m.bytes });
-      else if (m.type === "header-mismatch")
-        setState({ kind: "mismatch", missing: m.missing, extra: m.extra });
-      else if (m.type === "bad-encoding") setState({ kind: "bad-encoding", encoding: m.encoding });
-      else if (m.type === "done") setState({ kind: "done", ...m });
-      else setState({ kind: "error", message: m.message });
-    };
-    worker.postMessage({
+    stopRef.current = runPreview({
       query: props.query,
       header: props.columns.map((c) => c.name),
       file: target,
+      onEvent: (m) => {
+        if (m.type === "progress")
+          setState({ kind: "running", scanned: m.scanned, matched: m.matched, bytes: m.bytes });
+        else if (m.type === "header-mismatch")
+          setState({ kind: "mismatch", missing: m.missing, extra: m.extra });
+        else if (m.type === "bad-encoding")
+          setState({ kind: "bad-encoding", encoding: m.encoding });
+        else if (m.type === "done") setState({ kind: "done", ...m });
+        else setState({ kind: "error", message: m.message });
+      },
     });
   };
 
@@ -383,7 +382,7 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
                 if (done === null) return;
                 const sel = selectedRows();
                 // ファイルは元のCSVと同じ形式(UTF-8 BOM付き・CRLF・ヘッダ行あり)で書き出す
-                const csv: string | ArrayBuffer =
+                const csv: string | ArrayBuffer[] =
                   sel === null
                     ? done.csv
                     : "\ufeff" + headed(sel, true).map(formatCsvRow).join("\r\n") + "\r\n";
