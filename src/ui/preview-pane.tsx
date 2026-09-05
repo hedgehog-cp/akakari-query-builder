@@ -99,6 +99,43 @@ function useCsvText(csv: ArrayBuffer[] | null): () => string {
   }, [csv]);
 }
 
+/** 札に出す値。改修されている装備には ★+N を添える。 */
+function tipValue(row: string[], column: number, improve: number | undefined): string {
+  const value = row[column] ?? "";
+  if (value === "" || improve === undefined) return value;
+  const level = Number(row[improve] ?? "");
+  return Number.isFinite(level) && level >= 1 ? `${value} ★+${level}` : value;
+}
+
+/** 札の1行。装備の行は見出しを持たず、改修値を後ろに添える。 */
+type TipLine = { label: string; column: number; strong: boolean; improve?: number };
+
+function highlightsOf(header: string[]): TipLine[][] {
+  const index = new Map(header.map((name, i) => [name, i]));
+  const groups: TipLine[][] = [];
+  for (const names of HIGHLIGHT_GROUPS) {
+    const lines: TipLine[] = [];
+    for (const name of names) {
+      if (name === EQUIPS) {
+        for (let i = 0; i < header.length; i++) {
+          if (!EQUIP_COLUMN.test(header[i])) continue;
+          lines.push({
+            label: "",
+            column: i,
+            strong: false,
+            improve: index.get(header[i].replace(".名前", ".改修")),
+          });
+        }
+        continue;
+      }
+      const i = index.get(name);
+      if (i !== undefined) lines.push({ label: name, column: i, strong: STRONG_COLUMNS.has(name) });
+    }
+    if (lines.length > 0) groups.push(lines);
+  }
+  return groups;
+}
+
 /** 表のうち実際に作る範囲。行も列も、見えている分とその少し外だけを作る。 */
 type Window = { rowFirst: number; rowLast: number; colFirst: number; colLast: number };
 
@@ -149,6 +186,25 @@ function fontOf(el: Element): string {
   if (style.font !== "") return style.font;
   return `${style.fontWeight} ${style.fontSize}/${style.lineHeight} ${style.fontFamily}`;
 }
+
+/** 名前を太くする列。札の中で目印になるもの。 */
+const STRONG_COLUMNS = new Set(["攻撃艦.名前", "防御艦.名前"]);
+
+/** 装備の並びをここに広げる、という印。名前ごとに1行ずつ、見出しは付けない。 */
+const EQUIPS = "\u0000equips";
+
+const EQUIP_COLUMN = /^攻撃艦\.装備\d+\.名前$/;
+
+/**
+ * 行にカーソルを合わせたときに出す列。横に送らずに1行の意味を掴めるように、
+ * 塊ごとに区切って並べる。CSV に無い列は黙って飛ばす。
+ */
+const HIGHLIGHT_GROUPS: readonly (readonly string[])[] = [
+  ["会敵", "自陣形"],
+  ["クリティカル", "ダメージ"],
+  ["攻撃艦.名前", EQUIPS],
+  ["防御艦.ID", "防御艦.名前"],
+];
 
 /**
  * 表の1行の高さ(px)。行の位置を数で出せるように決め打ちにする。
@@ -415,19 +471,57 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
     setWindow(next);
   }, [colOffsets, done, page]);
   // 送っている間は毎回ではなく、次に描く直前に1度だけ数え直す。
-  const onScroll = () => {
+  // 同じ関数を返し続けるのは、表を作り直す条件に入っているため。
+  const onScroll = useCallback(() => {
     if (pending.current) return;
     pending.current = true;
     requestAnimationFrame(() => {
       pending.current = false;
       syncWindow();
     });
-  };
+  }, [syncWindow]);
+
+  /** カーソルを合わせている行。表そのものは作り直さないので、ここだけが変わる。 */
+  const [hovered, setHovered] = useState<number | null>(null);
+  /** 行の情報をカーソルの近くに出すか。 */
+  const [showTip, setShowTip] = useState(true);
+  const clearHover = useCallback(() => setHovered(null), []);
+
+  // 札はカーソルの少し右下に出す。位置は状態にせず直に書く。動かすたびに
+  // 描き直すと、行を跨がなくても画面全体を作り直すことになるため。
+  const tipRef = useRef<HTMLDivElement>(null);
+  const cursor = useRef({ x: 0, y: 0 });
+  const placeTip = useCallback(() => {
+    const el = tipRef.current;
+    if (el === null) return;
+    const { x, y } = cursor.current;
+    const gap = 16;
+    const edge = 8;
+    // 画面の端に近ければ、カーソルの反対側へ回す。
+    const left = x + gap + el.offsetWidth > innerWidth - edge ? x - gap - el.offsetWidth : x + gap;
+    const top =
+      y + gap + el.offsetHeight > innerHeight - edge ? y - gap - el.offsetHeight : y + gap;
+    el.style.left = `${Math.max(edge, left)}px`;
+    el.style.top = `${Math.max(edge, top)}px`;
+  }, []);
+  const onMouseMove = useCallback(
+    (e: MouseEvent) => {
+      cursor.current = { x: e.clientX, y: e.clientY };
+      placeTip();
+    },
+    [placeTip],
+  );
+  // 行が変わると札の大きさも変わるので、出し直すたびに置き直す。
+  useLayoutEffect(placeTip, [hovered, placeTip]);
   useLayoutEffect(syncWindow, [syncWindow]);
 
   // 表は数万セルあり、素直に書くと開閉やコピー通知など無関係な再描画のたびに
   // Preact がその全セルを差分計算してしまう。行データ・ページ・選択が変わらない
   // 限り同じ vnode を返せば、Preact はその部分木の差分計算ごと省略する。
+  /** カーソルを合わせた行の主要な列。横に送らずに読めるようにする。 */
+  const highlights = useMemo(() => (done === null ? [] : highlightsOf(done.header)), [done]);
+  const hoveredRow = showTip && done !== null && hovered !== null ? done.rows[hovered] : undefined;
+
   const table = useMemo(() => {
     if (done === null) return null;
     const from = page * PAGE_SIZE;
@@ -453,6 +547,8 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
         class="contain-layout overflow-auto max-h-[600px] border border-gray-300 rounded"
         onWheel={scrollSideways}
         onScroll={onScroll}
+        onMouseMove={onMouseMove}
+        onMouseLeave={clearHover}
       >
         {/* 字幅を測るためだけの見本。見えないが、字の指定は表の升目と同じにする。 */}
         <table
@@ -523,6 +619,7 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
                         : `hover:bg-emp-4 ${index % 2 === 1 ? "bg-gray-50" : "bg-bg-panel"}`
                     }`}
                     onMouseDown={(e) => selectRow(e as MouseEvent, index)}
+                    onMouseEnter={() => setHovered(index)}
                   >
                     {cellsOf(
                       (j) => (
@@ -550,7 +647,7 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
         )}
       </div>
     );
-  }, [done, page, colWidths, window_, selected, selectRow, onScroll]);
+  }, [done, page, colWidths, window_, selected, selectRow, onScroll, clearHover, onMouseMove]);
 
   /** 選択行。選択が空のときは null を返し、呼び出し側で全件を使う。 */
   const selectedRows = (): string[][] | null => {
@@ -716,6 +813,14 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
               />
               条件を変えたら自動で実行
             </label>
+            <label class="flex items-center gap-1 text-xs text-gray-600 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showTip}
+                onChange={(e) => setShowTip((e.target as HTMLInputElement).checked)}
+              />
+              行の情報をカーソルに出す
+            </label>
           </div>
           {source !== null && source.narrowed && (
             <p class="text-xs text-emp-1 bg-emp-4 rounded px-2 py-1 flex flex-wrap items-center gap-2">
@@ -801,6 +906,36 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
                 </p>
               )}
               {table}
+              {/* カーソルの近くに出す札。表の枠は中身を切り落とすので、その外に置く。
+                  つまみ上げの邪魔をしないよう、当たり判定は持たせない。 */}
+              {hoveredRow !== undefined && (
+                <div
+                  ref={tipRef}
+                  class="fixed z-40 pointer-events-none max-w-[28rem] grid grid-cols-[auto_1fr] gap-x-3 text-xs bg-bg-panel border border-gray-300 rounded shadow-lg px-2 py-1"
+                >
+                  {highlights.map((group, g) => (
+                    <div key={g} class="contents">
+                      {g > 0 && <div class="col-span-2 border-t border-gray-200 my-1" />}
+                      {group.map(({ label, column, strong, improve }) => {
+                        const value = tipValue(hoveredRow, column, improve);
+                        return (
+                          <div key={column} class="contents">
+                            <span class="text-gray-500 whitespace-nowrap">{label}</span>
+                            <span class={`break-words ${strong ? "font-bold" : ""}`}>
+                              {value !== "" ? (
+                                value
+                              ) : (
+                                // 空きスロットも行を残す。何番目が空いているかが分かる。
+                                <span class="text-gray-400">(empty)</span>
+                              )}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              )}
               <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600">
                 <span class="whitespace-nowrap">
                   {done.rows.length === 0
