@@ -9,47 +9,7 @@ import { ROW_HEIGHT, sameWindow, windowOf, type Window } from "./preview/table-w
 import { fontOf, measureColumns } from "./preview/column-width";
 import { highlightsOf, tipValue } from "./preview/row-tip";
 import { csvToTsv, download, useCsvText } from "./preview/output";
-
-type State =
-  | { kind: "idle" }
-  | {
-      kind: "running";
-      scanned: number;
-      matched: number;
-      /** 読み終えたバイト数。進捗の分子。 */ bytes: number;
-    }
-  | { kind: "mismatch"; missing: string[]; extra: string[] }
-  | { kind: "bad-encoding"; encoding: BadEncoding }
-  | {
-      kind: "done";
-      scanned: number;
-      matched: number;
-      rows: string[][];
-      truncated: boolean;
-      header: string[];
-      /** 一致した行の CSV(UTF-8 BOM付き・CRLF)。走査の範囲ごとに分かれている。 */
-      csv: ArrayBuffer[];
-      ignored: string[];
-    }
-  | { kind: "error"; message: string };
-
-/**
- * 走査の対象。落としたファイルのほか、直前の結果を対象にして更に絞ることもできる。
- * 結果は元のCSVと同じ形のバイト列なので、そのまま次の走査に掛けられる。
- */
-type Source = {
-  blob: Blob;
-  /** 画面に出す名前。 */
-  label: string;
-  /** 直前の結果を対象にしているか。 */
-  narrowed: boolean;
-};
-
-/**
- * 条件を変えてから自動で走らせ直すまでの待ち。条件は打鍵のたびに変わるので、
- * 手が止まるのを待ってからまとめて1回にする。
- */
-const AUTO_RUN_DELAY_MS = 400;
+import { useScan, type Source } from "./preview/use-scan";
 
 /** 1ページの表示行数。一度に描く量と、ページを繰る手数の釣り合いで決めた。 */
 const PAGE_SIZE = 200;
@@ -84,10 +44,6 @@ function scrollSideways(e: WheelEvent): void {
 
 /** 手元の CSV に条件を当てて結果を見せる枠。走査はワーカーで行う。 */
 export function PreviewPane(props: { query: Query; columns: Column[] }) {
-  const [file, setFile] = useState<File | null>(null);
-  /** 次の走査を掛ける先。既定は落としたファイルそのもの。 */
-  const [source, setSource] = useState<Source | null>(null);
-  const [state, setState] = useState<State>({ kind: "idle" });
   const [page, setPage] = useState(0);
   const [dragOver, setDragOver] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -97,13 +53,6 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [anchor, setAnchor] = useState<number | null>(null);
   const [open, setOpen] = useState(true);
-  /** 条件を変えるたびに走らせ直すか。 */
-  const [autoRun, setAutoRun] = useState(false);
-  /** 走っている走査を止める手。次の走査を始める前と、枠を閉じるときに呼ぶ。 */
-  const stopRef = useRef<(() => void) | null>(null);
-
-  useEffect(() => () => stopRef.current?.(), []);
-
   const expectedFileName = `${BATTLE_LABEL[props.query.battle]}.csv`;
 
   const clearSelection = () => {
@@ -111,58 +60,11 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
     setAnchor(null);
   };
 
-  const run = (target: Source) => {
-    stopRef.current?.();
+  const scan = useScan(props.query, props.columns, () => {
     setPage(0);
     clearSelection();
-    setState({ kind: "running", scanned: 0, matched: 0, bytes: 0 });
-    stopRef.current = runPreview({
-      query: props.query,
-      header: props.columns.map((c) => c.name),
-      file: target.blob,
-      onEvent: (m) => {
-        if (m.type === "progress")
-          setState({ kind: "running", scanned: m.scanned, matched: m.matched, bytes: m.bytes });
-        else if (m.type === "header-mismatch")
-          setState({ kind: "mismatch", missing: m.missing, extra: m.extra });
-        else if (m.type === "bad-encoding")
-          setState({ kind: "bad-encoding", encoding: m.encoding });
-        else if (m.type === "done") setState({ kind: "done", ...m });
-        else setState({ kind: "error", message: m.message });
-      },
-    });
-  };
-
-  // 戦闘種別が違うために弾かれた CSV は、正しい戦闘種別に切り替えた時点で
-  // 自動的に走らせ直す。列カタログは戦闘種別ごとに取り直されるので、
-  // 「新しい列が届いた」= 切り替わったタイミングとして props.columns を見る。
-  // 依存に state を入れると mismatch → 実行 → mismatch で回り続けるため入れない。
-  // 成功済み(done)のときは自動再実行しない。数十万行の走査を切り替えのたびに
-  // 始めてしまうため、そちらは「再実行」ボタンに任せる。
-  useEffect(() => {
-    if (state.kind === "mismatch" && source !== null) run(source);
-  }, [props.columns]);
-
-  // 条件を変えたら走らせ直す。数十万行の走査を打鍵のたびに始めないよう、
-  // 手が止まってからまとめて1回にする。既定では走らせず、チェックで有効にする。
-  const sourceRef = useRef<Source | null>(null);
-  sourceRef.current = source;
-  useEffect(() => {
-    if (!autoRun) return;
-    const timer = setTimeout(() => {
-      const target = sourceRef.current;
-      if (target !== null) run(target);
-    }, AUTO_RUN_DELAY_MS);
-    return () => clearTimeout(timer);
-  }, [props.query, autoRun]);
-
-  /** 受け取った時点で実行する。 */
-  const accept = (f: File) => {
-    setFile(f);
-    const next: Source = { blob: f, label: f.name, narrowed: false };
-    setSource(next);
-    run(next);
-  };
+  });
+  const { state, file, source, run, accept, setSource, autoRun, setAutoRun } = scan;
 
   const pickFile = () => {
     const input = document.createElement("input");
