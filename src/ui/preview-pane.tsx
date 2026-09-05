@@ -11,9 +11,6 @@ import { highlightsOf, tipValue } from "./preview/row-tip";
 import { csvToTsv, download, useCsvText } from "./preview/output";
 import { useScan, type Source } from "./preview/use-scan";
 
-/** 1ページの表示行数。一度に描く量と、ページを繰る手数の釣り合いで決めた。 */
-const PAGE_SIZE = 200;
-
 /**
  * ヘッダ不一致の列名を並べる上限。列は百を超えるので、戦闘種別違いの CSV を落とすと
  * ほぼ全列が並んで画面が埋まってしまうため、先頭だけ見せて残りは件数にする。
@@ -44,7 +41,6 @@ function scrollSideways(e: WheelEvent): void {
 
 /** 手元の CSV に条件を当てて結果を見せる枠。走査はワーカーで行う。 */
 export function PreviewPane(props: { query: Query; columns: Column[] }) {
-  const [page, setPage] = useState(0);
   const [dragOver, setDragOver] = useState(false);
   const [copied, setCopied] = useState(false);
   /** コピーする文字列にヘッダ行を含めるか。表計算へ継ぎ足すときに外せるようにした。 */
@@ -55,14 +51,18 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
   const [open, setOpen] = useState(true);
   const expectedFileName = `${BATTLE_LABEL[props.query.battle]}.csv`;
 
+  /** 表を包む枠。縦の位置を戻すときと、見えている範囲を測るときに使う。 */
+  const scrollRef = useRef<HTMLDivElement>(null);
+
   const clearSelection = () => {
     setSelected(new Set());
     setAnchor(null);
   };
 
   const scan = useScan(props.query, props.columns, () => {
-    setPage(0);
     clearSelection();
+    // 前の結果の位置が残っていると、作る行を決める計算もそのままになる。
+    if (scrollRef.current !== null) scrollRef.current.scrollTop = 0;
   });
   const { state, file, source, run, accept, setSource, autoRun, setAutoRun } = scan;
 
@@ -85,18 +85,6 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
 
   const done = state.kind === "done" ? state : null;
   const csvText = useCsvText(done?.csv ?? null);
-  const totalPages = done === null ? 1 : Math.max(1, Math.ceil(done.rows.length / PAGE_SIZE));
-  const start = page * PAGE_SIZE;
-  const pageRows = done === null ? [] : done.rows.slice(start, start + PAGE_SIZE);
-
-  // ページをまたぐ選択は扱わない。移動したら選択も起点も捨てる。
-  const goPage = (next: number) => {
-    setPage(next);
-    clearSelection();
-    // ページを繰ったら先頭から見せる。縦の位置が残っていると、
-    // 作る行を決める計算も前のページの位置のままになる。
-    if (scrollRef.current !== null) scrollRef.current.scrollTop = 0;
-  };
 
   // 選択と起点は ref からも読めるようにしておく。下の selectRow を
   // 「毎回同じ関数」にするためで、そうしないと行 vnode を使い回したときに
@@ -132,7 +120,7 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
   // 差分計算を丸ごと省く。これを使い、選択の色が変わった行だけを作り直して他の行は
   // 前回のものを返す。素直に毎回作り直すと、1行クリックするたびに表の全セルぶんの
   // vnode を作って比べることになり、選択が目に見えて遅れる。
-  // 列の幅。結果ごとに1度だけ測り、以降のページはこの幅で描く。
+  // 列の幅。結果ごとに1度だけ測り、以降はその幅で描く。
   // 字幅は、字の指定だけを同じにした見えない見本から読む(本体を測る必要はない)。
   const probeRef = useRef<HTMLTableElement>(null);
   const [widths, setWidths] = useState<{ done: unknown; px: number[] } | null>(null);
@@ -155,7 +143,6 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
   }, [colWidths]);
 
   // 表を送るたびに、作る範囲を出し直す。範囲が変わらないうちは作り直さない。
-  const scrollRef = useRef<HTMLDivElement>(null);
   const [window_, setWindow] = useState<Window>({
     rowFirst: 0,
     rowLast: -1,
@@ -167,12 +154,11 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
   const syncWindow = useCallback(() => {
     const el = scrollRef.current;
     if (el === null || colOffsets === null || done === null) return;
-    const rows = Math.min(PAGE_SIZE, done.rows.length - page * PAGE_SIZE);
-    const next = windowOf(el, colOffsets, rows);
+    const next = windowOf(el, colOffsets, done.rows.length);
     if (sameWindow(windowRef.current, next)) return;
     windowRef.current = next;
     setWindow(next);
-  }, [colOffsets, done, page]);
+  }, [colOffsets, done]);
   // 送っている間は毎回ではなく、次に描く直前に1度だけ数え直す。
   // 同じ関数を返し続けるのは、表を作り直す条件に入っているため。
   const onScroll = useCallback(() => {
@@ -219,7 +205,7 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
   useLayoutEffect(syncWindow, [syncWindow]);
 
   // 表は数万セルあり、素直に書くと開閉やコピー通知など無関係な再描画のたびに
-  // Preact がその全セルを差分計算してしまう。行データ・ページ・選択が変わらない
+  // Preact がその全セルを差分計算してしまう。行データ・窓・選択が変わらない
   // 限り同じ vnode を返せば、Preact はその部分木の差分計算ごと省略する。
   /** カーソルを合わせた行の主要な列。横に送らずに読めるようにする。 */
   const highlights = useMemo(() => (done === null ? [] : highlightsOf(done.header)), [done]);
@@ -227,8 +213,7 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
 
   const table = useMemo(() => {
     if (done === null) return null;
-    const from = page * PAGE_SIZE;
-    const rows = done.rows.slice(from, from + PAGE_SIZE);
+    const rows = done.rows;
     const w = window_;
     // 幅がまだ測れていない間は、字幅を読むための見本だけを描く。
     const ready = colWidths !== null;
@@ -306,7 +291,7 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
                 </tr>
               )}
               {rows.slice(w.rowFirst, w.rowLast + 1).map((r, i) => {
-                const index = from + w.rowFirst + i;
+                const index = w.rowFirst + i;
                 const on = selected.has(index);
                 return (
                   <tr
@@ -350,7 +335,7 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
         )}
       </div>
     );
-  }, [done, page, colWidths, window_, selected, selectRow, onScroll, clearHover, onMouseMove]);
+  }, [done, colWidths, window_, selected, selectRow, onScroll, clearHover, onMouseMove]);
 
   /** 選択行。選択が空のときは null を返し、呼び出し側で全件を使う。 */
   const selectedRows = (): string[][] | null => {
@@ -641,38 +626,13 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
               )}
               <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600">
                 <span class="whitespace-nowrap">
-                  {done.rows.length === 0
-                    ? "0–0"
-                    : `${(start + 1).toLocaleString()}–${(start + pageRows.length).toLocaleString()}`}
-                  {" / 全"}
-                  {done.matched.toLocaleString()}件
-                  {selected.size > 0 && ` (選択 ${selected.size} 行)`}
+                  全{done.matched.toLocaleString()}件
+                  {done.truncated && `(表は先頭 ${done.rows.length.toLocaleString()} 行)`}
+                  {selected.size > 0 && ` 選択 ${selected.size} 行`}
                 </span>
-                {/* 注記は伸ばして、ページ送りを右端へ押しやる */}
                 <p class="flex-1 text-gray-500">
-                  {done.truncated
-                    ? `表には先頭 ${done.rows.length.toLocaleString()} 行のみ表示しています。`
-                    : ""}
                   {expectedFileName}を新たにドロップすると差し替わります。
                 </p>
-                <div class="flex items-center gap-1">
-                  <button
-                    type="button"
-                    class="border border-gray-300 rounded px-2 py-0.5 hover:bg-emp-4 disabled:opacity-40"
-                    disabled={page === 0}
-                    onClick={() => goPage(Math.max(0, page - 1))}
-                  >
-                    ← 前へ
-                  </button>
-                  <button
-                    type="button"
-                    class="border border-gray-300 rounded px-2 py-0.5 hover:bg-emp-4 disabled:opacity-40"
-                    disabled={page >= totalPages - 1}
-                    onClick={() => goPage(Math.min(totalPages - 1, page + 1))}
-                  >
-                    次へ →
-                  </button>
-                </div>
               </div>
             </div>
           )}
