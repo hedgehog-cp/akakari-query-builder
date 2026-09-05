@@ -5,6 +5,7 @@ import { NamePicker } from "./name-picker";
 import type { NameTarget } from "./name-target";
 import { isEmptyValueCond } from "../model/validate";
 import { ChoiceChips } from "./choice-chips";
+import { NameSuggestInput } from "./name-suggest";
 
 /** 画面で選べる条件の種類。 */
 export type CondOp = "一致" | "含む" | "正規表現" | CompareOp;
@@ -48,8 +49,12 @@ function EqEditor(props: {
   column: Column | undefined;
   values: (string | number)[];
   onChange: (v: (string | number)[]) => void;
+  /** 艦名・装備名の列なら、入力中に候補を出す。 */
+  suggest?: NameTarget | null;
 }) {
   const col = props.column;
+  const parse = (raw: string) =>
+    raw === "" ? [] : raw.split(",").map((s) => coerce(s.trim(), col));
 
   // enum を持つ列: 値そのものを選ぶ
   if (col?.enum !== undefined) {
@@ -73,6 +78,19 @@ function EqEditor(props: {
     );
   }
 
+  // 名前の列: 打っている途中に候補を出す
+  if (props.suggest != null) {
+    return (
+      <NameSuggestInput
+        target={props.suggest}
+        class="flex-1 min-w-[8rem]"
+        placeholder={col?.example ?? "値(カンマ区切りでOR)"}
+        value={props.values.join(",")}
+        onInput={(raw) => props.onChange(parse(raw))}
+      />
+    );
+  }
+
   // それ以外: カンマ区切りの自由入力
   return (
     <input
@@ -80,11 +98,7 @@ function EqEditor(props: {
       class="ctl border border-gray-300 rounded px-1 flex-1 min-w-[8rem]"
       placeholder={col?.example ?? "値(カンマ区切りでOR)"}
       value={props.values.join(",")}
-      onInput={(e) => {
-        const raw = (e.target as HTMLInputElement).value;
-        const parts = raw === "" ? [] : raw.split(",").map((s) => coerce(s.trim(), col));
-        props.onChange(parts);
-      }}
+      onInput={(e) => props.onChange(parse((e.target as HTMLInputElement).value))}
     />
   );
 }
@@ -131,6 +145,7 @@ export function ValueCondEditor(props: {
         <EqEditor
           column={col}
           values={props.cond.values}
+          suggest={props.pickerTarget}
           onChange={(v) => props.onChange({ kind: "eq", values: v })}
         />
       )}
