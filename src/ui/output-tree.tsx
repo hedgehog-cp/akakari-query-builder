@@ -7,6 +7,7 @@ import { nameTargetOf } from "../model/name-target";
 import { CellInput, MapAreaSelect, parseCells } from "./map-input";
 import { RuleGroup, type RuleDnd } from "./rule-group";
 import { moveNode, type TreeAdapter } from "./tree-move";
+import { rowKeyer } from "./row-key";
 
 function ColumnSelect(props: {
   columns: Column[];
@@ -53,26 +54,7 @@ function newDisplayItemNode(): OutputNode {
   };
 }
 
-/**
- * RuleGroup の行キー。オブジェクト参照ごとに一意な番号を割り当てて使い回す。
- * reorder() は配列内の要素を並べ替えるだけで個々の OutputNode オブジェクトの参照は
- * 変えないため、ドラッグでの並べ替えでは同じキーが保たれる(SortableJSのDOM操作と
- * Preactの再描画がズレて見た目が更新されなくなる問題を防ぐ)。列や条件値の編集は
- * スプレッド構文で新しいオブジェクトを作る(`{ ...node, cond }` など)ため本来は
- * 別キーになってしまうが、RuleGroup の onChildEdit で旧オブジェクトのキーを
- * 新オブジェクトへ引き継いでいるため、編集のたびに行(=DOM)が作り直されて
- * 入力中のフォーカスが外れる、ということは起きない。
- */
-const nodeKeys = new WeakMap<OutputNode, number>();
-let nextNodeKey = 0;
-function keyOf(node: OutputNode): number {
-  let key = nodeKeys.get(node);
-  if (key === undefined) {
-    key = nextNodeKey++;
-    nodeKeys.set(node, key);
-  }
-  return key;
-}
+const rows = rowKeyer<OutputNode>();
 
 /**
  * 木をまたいだ移動でグループを作り直すときに使う。行キーを引き継ぐのは
@@ -84,8 +66,7 @@ const outputAdapter: TreeAdapter<OutputNode> = {
   withChildren: (n, children) => {
     if (n.kind !== "group") return n;
     const next: OutputNode = { ...n, children };
-    const k = nodeKeys.get(n);
-    if (k !== undefined) nodeKeys.set(next, k);
+    rows.inherit(n, next);
     return next;
   },
 };
@@ -206,11 +187,8 @@ function renderNode(
       renderChild={(child, onChildChange, onChildRemove, index) =>
         renderNode(child, columns, depth + 1, onChildChange, onChildRemove, dnd, [...path, index])
       }
-      keyOf={keyOf}
-      onChildEdit={(prev, next) => {
-        const k = nodeKeys.get(prev);
-        if (k !== undefined) nodeKeys.set(next, k);
-      }}
+      keyOf={rows.keyOf}
+      onChildEdit={rows.inherit}
     />
   );
 }

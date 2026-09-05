@@ -10,6 +10,7 @@ import { combinations } from "../model/expand";
 import type { Column } from "../model/column";
 import { ValueCondEditor, defaultCond } from "./value-cond-editor";
 import { RuleGroup } from "./rule-group";
+import { rowKeyer } from "./row-key";
 
 const SLOT_ATTRS: SlotAttr[] = ["名前", "改修", "熟練度", "搭載数", "戦闘後搭載数"];
 const SIDES: Side[] = ["攻撃艦", "防御艦"];
@@ -38,17 +39,7 @@ function branchCount(q: SlotQuantity): number {
   }
 }
 
-/** RuleGroup の行キー。output-tree.tsx / date-section.tsx と同じパターン。 */
-const attrKeys = new WeakMap<SlotAttrCond, number>();
-let nextAttrKey = 0;
-function keyOf(a: SlotAttrCond): number {
-  let key = attrKeys.get(a);
-  if (key === undefined) {
-    key = nextAttrKey++;
-    attrKeys.set(a, key);
-  }
-  return key;
-}
+const rows = rowKeyer<SlotAttrCond>();
 
 /** 装備スロット条件(いずれか / N個以上 など)を編集する行。 */
 export function SlotNodeEditor(props: {
@@ -152,11 +143,8 @@ export function SlotNodeEditor(props: {
             )}
           </div>
         )}
-        keyOf={keyOf}
-        onChildEdit={(prev, next) => {
-          const k = attrKeys.get(prev);
-          if (k !== undefined) attrKeys.set(next, k);
-        }}
+        keyOf={rows.keyOf}
+        onChildEdit={rows.inherit}
         onRemove={props.onRemove}
       />
     </div>

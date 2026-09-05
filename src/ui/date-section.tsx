@@ -1,19 +1,9 @@
 import type { DateRange } from "../model/types";
 import { fromDateCode, toDateCode } from "./date";
 import { RuleGroup } from "./rule-group";
+import { rowKeyer } from "./row-key";
 
-/** RuleGroup の行キー。編集で新しいオブジェクトに置き換わってもキーを引き継ぐ
- * (RuleGroup を使う他の枠と同じパターン)。 */
-const rangeKeys = new WeakMap<DateRange, number>();
-let nextRangeKey = 0;
-function keyOf(r: DateRange): number {
-  let key = rangeKeys.get(r);
-  if (key === undefined) {
-    key = nextRangeKey++;
-    rangeKeys.set(r, key);
-  }
-  return key;
-}
+const rows = rowKeyer<DateRange>();
 
 function renderRange(r: DateRange, onChange: (r: DateRange) => void, onRemove: () => void) {
   const set = (key: "start" | "end", local: string) => {
@@ -61,11 +51,8 @@ export function DateSection(props: { ranges: DateRange[]; onChange: (r: DateRang
           },
         ]}
         renderChild={renderRange}
-        keyOf={keyOf}
-        onChildEdit={(prev, next) => {
-          const k = rangeKeys.get(prev);
-          if (k !== undefined) rangeKeys.set(next, k);
-        }}
+        keyOf={rows.keyOf}
+        onChildEdit={rows.inherit}
       />
     </section>
   );

@@ -2,6 +2,7 @@ import { ITEM_ATTRS, type CountItemNode, type ItemAttr, type ItemCond } from "..
 import { master } from "../master/load";
 import { ValueCondEditor, defaultCond } from "./value-cond-editor";
 import { RuleGroup } from "./rule-group";
+import { rowKeyer } from "./row-key";
 
 /** 装備の条件は CSV の列ではないので、列メタは持たない。 */
 const NO_COLUMN = undefined;
@@ -10,38 +11,8 @@ function newAttrCond(): ItemCond {
   return { kind: "attr", attr: "装備名", cond: defaultCond("一致", NO_COLUMN) };
 }
 
-/**
- * RuleGroup の行キー。オブジェクト参照ごとに一意な番号を割り当てて使い回す。
- * reorder() は配列内の要素を並べ替えるだけで個々のオブジェクトの参照は
- * 変えないため、ドラッグでの並べ替えでは同じキーが保たれる(SortableJSのDOM操作と
- * Preactの再描画がズレて見た目が更新されなくなる問題を防ぐ)。値や条件の編集は
- * スプレッド構文で新しいオブジェクトを作る(`{ ...cond, ... }` など)ため本来は
- * 別キーになってしまうが、RuleGroup の onChildEdit で旧オブジェクトのキーを
- * 新オブジェクトへ引き継いでいるため、編集のたびに行(=DOM)が作り直されて
- * 入力中のフォーカスが外れる、ということは起きない。ItemCond と CountItemNode
- * は別の型なので、WeakMap も型ごとに分けて持つ。
- */
-const itemCondKeys = new WeakMap<ItemCond, number>();
-let nextItemCondKey = 0;
-function itemCondKeyOf(cond: ItemCond): number {
-  let key = itemCondKeys.get(cond);
-  if (key === undefined) {
-    key = nextItemCondKey++;
-    itemCondKeys.set(cond, key);
-  }
-  return key;
-}
-
-const countNodeKeys = new WeakMap<CountItemNode, number>();
-let nextCountNodeKey = 0;
-function countNodeKeyOf(node: CountItemNode): number {
-  let key = countNodeKeys.get(node);
-  if (key === undefined) {
-    key = nextCountNodeKey++;
-    countNodeKeys.set(node, key);
-  }
-  return key;
-}
+const condRows = rowKeyer<ItemCond>();
+const countRows = rowKeyer<CountItemNode>();
 
 function renderItemCond(
   cond: ItemCond,
@@ -145,11 +116,8 @@ function renderItemCond(
       renderChild={(child, onChildChange, onChildRemove) =>
         renderItemCond(child, depth + 1, onChildChange, onChildRemove)
       }
-      keyOf={itemCondKeyOf}
-      onChildEdit={(prev, next) => {
-        const k = itemCondKeys.get(prev);
-        if (k !== undefined) itemCondKeys.set(next, k);
-      }}
+      keyOf={condRows.keyOf}
+      onChildEdit={condRows.inherit}
     />
   );
 }
@@ -224,11 +192,8 @@ function renderCountNode(
       renderChild={(child, onChildChange, onChildRemove) =>
         renderCountNode(child, depth + 1, onChildChange, onChildRemove)
       }
-      keyOf={countNodeKeyOf}
-      onChildEdit={(prev, next) => {
-        const k = countNodeKeys.get(prev);
-        if (k !== undefined) countNodeKeys.set(next, k);
-      }}
+      keyOf={countRows.keyOf}
+      onChildEdit={countRows.inherit}
     />
   );
 }
