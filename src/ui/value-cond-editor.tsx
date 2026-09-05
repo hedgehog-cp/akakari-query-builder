@@ -2,7 +2,7 @@ import { useState } from "preact/hooks";
 import type { CompareOp, ValueCond } from "../model/types";
 import type { Column } from "../schema/catalog";
 import { NamePicker } from "./name-picker";
-import type { NameTarget } from "./name-target";
+import type { NameTarget } from "../model/name-target";
 import { isEmptyValueCond } from "../model/validate";
 import { ChoiceChips } from "./choice-chips";
 import { NameSuggestInput } from "./name-suggest";

@@ -1,7 +1,7 @@
 import type { Column } from "../schema/catalog";
 import { BATTLE_KEY, ITEM_ATTRS } from "../model/types";
 import { master } from "../master/load";
-import { nameTargetOf } from "./name-target";
+import { nameTargetOf } from "../model/name-target";
 import { suggestNames } from "./name-suggest";
 
 /** 補完の候補1件。text は文字列の中身として入れる値。 */

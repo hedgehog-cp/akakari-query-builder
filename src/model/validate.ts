@@ -2,7 +2,7 @@ import type { CountItemNode, ItemCond, OutputNode, Query, ValueCond } from "./ty
 import { expandOutput } from "./expand";
 import type { Column } from "../schema/catalog";
 import { master } from "../master/load";
-import { nameTargetOf } from "../ui/name-target";
+import { nameTargetOf } from "./name-target";
 
 /** 警告の種類。画面での出し分けに使う。 */
 export type WarningCode =

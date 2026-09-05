@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { master, equipTypeName, isAbyssal, shipTypeName, shipTypes } from "../master/load";
 import { EQUIP_GROUPS, inEquipGroup } from "../master/groups";
-import type { NameTarget } from "./name-target";
+import type { NameTarget } from "../model/name-target";
 import { useScrollLock } from "./scroll-lock";
 
 type Row = { id: number; name: string; sub: string };

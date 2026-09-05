@@ -3,7 +3,7 @@ import type { Column } from "../schema/catalog";
 import { ValueCondEditor, defaultCond } from "./value-cond-editor";
 import { SlotNodeEditor } from "./slot-node";
 import { DisplayItemNodeEditor } from "./display-item-node";
-import { nameTargetOf } from "./name-target";
+import { nameTargetOf } from "../model/name-target";
 import { CellInput, MapAreaSelect, parseCells } from "./map-input";
 import { RuleGroup, type RuleDnd } from "./rule-group";
 import { moveNode, type TreeAdapter } from "./tree-move";

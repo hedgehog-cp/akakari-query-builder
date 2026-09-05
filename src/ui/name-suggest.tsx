@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import { master, equipTypeName, shipTypeName } from "../master/load";
-import type { NameTarget } from "./name-target";
+import type { NameTarget } from "../model/name-target";
 import { scrollItemIntoView } from "./list-scroll";
 
 /** 入力中に出す候補1件。value は条件に入る実際の値。 */
