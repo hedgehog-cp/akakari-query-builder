@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
-import { master, equipTypeName, isAbyssal, shipTypeName } from "../master/load";
+import { master, equipTypeName, isAbyssal, shipTypeName, shipTypes } from "../master/load";
 import { EQUIP_GROUPS, inEquipGroup } from "../master/groups";
 import type { NameTarget } from "./name-target";
 import { useScrollLock } from "./scroll-lock";
@@ -64,7 +64,7 @@ export function NamePicker(props: {
 
   const subTypes = isEquip
     ? master.equipTypes.filter((t) => inEquipGroup(EQUIP_GROUPS[groupIndex], t.id))
-    : master.shipTypes;
+    : shipTypes;
 
   const valueOf = (r: Row): string | number => (props.target.kind === "equipId" ? r.id : r.name);
 

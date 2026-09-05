@@ -39,7 +39,24 @@ export function equipTypeName(type2: number): string {
   return master.equipTypes.find((t) => t.id === type2)?.name ?? `不明(${type2})`;
 }
 
+/** マスタの艦種名の読み替え。同じ名前の艦種が並ぶと選びようがないので、区別できる名前にする。 */
+const SHIP_TYPE_RENAMES = new Map<number, string>([
+  [8, "巡洋戦艦"],
+  [15, "補給艦(AP)"],
+  [22, "補給艦(AO)"],
+]);
+
+/** 一覧に出さない艦種ID。属する艦が1隻もない。 */
+const EMPTY_SHIP_TYPES = new Set<number>([12]);
+
+/** 画面の絞り込みに出す艦種。読み替え済みで、空の艦種は除いてある。 */
+export const shipTypes: ShipType[] = master.shipTypes
+  .filter((t) => !EMPTY_SHIP_TYPES.has(t.id))
+  .map((t) => ({ id: t.id, name: SHIP_TYPE_RENAMES.get(t.id) ?? t.name }));
+
 /** 艦種IDを名前にする。マスタに無ければ「不明(ID)」。 */
 export function shipTypeName(stype: number): string {
+  const renamed = SHIP_TYPE_RENAMES.get(stype);
+  if (renamed !== undefined) return renamed;
   return master.shipTypes.find((t) => t.id === stype)?.name ?? `不明(${stype})`;
 }
