@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { spotAt, completionsFor, completionRangeAt, type Spot } from "./json-complete";
-import type { Column } from "../schema/catalog";
+import type { Column } from "../model/column";
 
 const columns: Column[] = [
   { name: "攻撃艦.名前", type: "string" },

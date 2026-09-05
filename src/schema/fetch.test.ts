@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { fetchCatalog, schemaUrl } from "./fetch";
-import { BATTLE_SCHEMA } from "../model/types";
+import { BATTLE_SCHEMA } from "./generations";
 import { SCHEMA_IDS, schemaUrl as toolSchemaUrl } from "../../tools/schema-urls.mjs";
 
 afterEach(() => {

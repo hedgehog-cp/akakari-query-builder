@@ -1,6 +1,6 @@
 import type { CompareOp, DateRange, OutputNode, Query, ValueCond } from "../model/types";
 import { expandOutput } from "../model/expand";
-import type { Column } from "../schema/catalog";
+import type { Column } from "../model/column";
 
 /** toGoogleQuery の結果。 */
 export type GQueryResult = {

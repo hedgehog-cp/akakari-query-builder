@@ -1,11 +1,10 @@
-import { BATTLE_SCHEMA, type Battle } from "../model/types";
-import { toCatalog, type Column } from "./catalog";
-import generations from "./generations.json";
+import type { Battle } from "../model/types";
+import { BATTLE_SCHEMA, SCHEMA_BASE } from "./generations";
+import { toCatalog } from "./catalog";
+import type { Column } from "../model/column";
 import fallbackHougeki from "./fallback/akakari-hougeki.json";
 import fallbackRaigeki from "./fallback/akakari-raigeki.json";
 import fallbackMidnight from "./fallback/akakari-midnight.json";
-
-export type { Column };
 
 /**
  * スキーマの配信元。akakari-schema が安定URLで配る Table Schema 本体を参照する。
@@ -16,7 +15,7 @@ export type { Column };
  * 404になり、気づかないまま同梱データで動き続けていた。取得先が生きているかは
  * CI の死活確認で見る。
  */
-const BASE: string = import.meta.env.VITE_SCHEMA_BASE ?? generations.base;
+const BASE: string = import.meta.env.VITE_SCHEMA_BASE ?? SCHEMA_BASE;
 
 /** ネットワーク取得に失敗したときの同梱データ。`npm run update:schema-fallback` で更新する。 */
 const FALLBACK: Record<Battle, unknown> = {

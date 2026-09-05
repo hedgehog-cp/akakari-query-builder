@@ -1,22 +1,4 @@
-/** 列の値の型。Table Schema のうち画面が区別する2種類だけ。 */
-export type FieldType = "integer" | "string";
-
-/** 選択肢のある列で、値と表示名の対。 */
-export type Category = { value: number; label: string };
-
-/** 画面が扱う1列ぶんのメタ情報。 */
-export type Column = {
-  name: string;
-  type: FieldType;
-  title?: string;
-  description?: string;
-  enum?: string[];
-  categories?: Category[];
-  minimum?: number;
-  maximum?: number;
-  pattern?: string;
-  example?: string;
-};
+import type { Column } from "../model/column";
 
 type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === "object" && v !== null && !Array.isArray(v);

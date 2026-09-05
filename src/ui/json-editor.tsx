@@ -18,7 +18,7 @@ import {
   type CompletionResult,
 } from "@codemirror/autocomplete";
 import { tags } from "@lezer/highlight";
-import type { Column } from "../schema/catalog";
+import type { Column } from "../model/column";
 import { completionRangeAt } from "./json-complete";
 
 /** ツリーUIからの差し替えに付ける印。利用者の打鍵と区別するために使う。 */

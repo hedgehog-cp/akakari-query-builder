@@ -1,5 +1,3 @@
-import generations from "../schema/generations.json";
-
 /** 対応する赤仮CSVの種類。 */
 export type Battle = "akakari-hougeki" | "akakari-raigeki" | "akakari-midnight";
 
@@ -9,15 +7,6 @@ export const BATTLE_KEY: Record<Battle, string> = {
   "akakari-raigeki": "赤仮雷撃戦",
   "akakari-midnight": "赤仮夜戦",
 };
-
-/**
- * akakari-schema サイト上の版ID(拡張子なし)。
- *
- * 実体は generations.json にある。新しい世代に移るときに直す場所を1か所に
- * するためで、画面・同梱データの更新・取得先の死活確認はすべてそこを見る。
- * keys が Battle と食い違えば、この代入で型エラーになる。
- */
-export const BATTLE_SCHEMA: Record<Battle, string> = generations.ids;
 
 export const BATTLE_LABEL: Record<Battle, string> = BATTLE_KEY;
 

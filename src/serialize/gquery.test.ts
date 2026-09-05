@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { toGoogleQuery } from "./gquery";
 import { emptyQuery, type Query } from "../model/types";
-import type { Column } from "../schema/catalog";
+import type { Column } from "../model/column";
 
 const COLUMNS: Column[] = [
   { name: "No.", type: "integer" },

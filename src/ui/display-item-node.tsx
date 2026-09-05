@@ -1,6 +1,6 @@
 import { DISPLAY_ITEM_COUNT } from "../model/expand";
 import type { DisplayItemQuantity, OutputNode } from "../model/types";
-import type { Column } from "../schema/catalog";
+import type { Column } from "../model/column";
 import { ValueCondEditor } from "./value-cond-editor";
 
 type DisplayItemNode = Extract<OutputNode, { kind: "displayItem" }>;

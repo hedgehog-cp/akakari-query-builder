@@ -1,4 +1,5 @@
-import { BATTLE_LABEL, BATTLE_SCHEMA, type Battle } from "../model/types";
+import { BATTLE_LABEL, type Battle } from "../model/types";
+import { BATTLE_SCHEMA } from "../schema/generations";
 
 const BATTLES: Battle[] = ["akakari-hougeki", "akakari-raigeki", "akakari-midnight"];
 

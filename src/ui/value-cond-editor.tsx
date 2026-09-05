@@ -1,6 +1,6 @@
 import { useState } from "preact/hooks";
 import type { CompareOp, ValueCond } from "../model/types";
-import type { Column } from "../schema/catalog";
+import type { Column } from "../model/column";
 import { NamePicker } from "./name-picker";
 import type { NameTarget } from "../model/name-target";
 import { isEmptyValueCond } from "../model/validate";

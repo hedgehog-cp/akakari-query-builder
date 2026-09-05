@@ -1,4 +1,4 @@
-import type { Column } from "../schema/catalog";
+import type { Column } from "../model/column";
 import { BATTLE_KEY, ITEM_ATTRS } from "../model/types";
 import { master } from "../master/load";
 import { nameTargetOf } from "../model/name-target";

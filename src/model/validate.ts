@@ -1,6 +1,6 @@
 import type { CountItemNode, ItemCond, OutputNode, Query, ValueCond } from "./types";
 import { expandOutput } from "./expand";
-import type { Column } from "../schema/catalog";
+import type { Column } from "./column";
 import { master } from "../master/load";
 import { nameTargetOf } from "./name-target";
 

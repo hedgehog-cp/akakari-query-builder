@@ -3,7 +3,7 @@ import type { Query } from "../model/types";
 import { serializeQuery } from "../serialize/json";
 import { toGoogleQuery } from "../serialize/gquery";
 import { parseQuery, type ParseWarning } from "../parse/json";
-import type { Column } from "../schema/catalog";
+import type { Column } from "../model/column";
 import { JsonEditor } from "./json-editor";
 
 /**

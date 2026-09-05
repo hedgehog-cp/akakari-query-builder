@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { BATTLE_LABEL, type Query } from "../model/types";
-import type { Column } from "../schema/catalog";
+import type { Column } from "../model/column";
 import { runPreview } from "../eval/preview-runner";
 import { CsvParser, formatCsvRow, formatTsvRow } from "../eval/csv";
 import type { BadEncoding } from "../eval/encoding";

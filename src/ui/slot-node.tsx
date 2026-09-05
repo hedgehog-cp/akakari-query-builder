@@ -7,7 +7,7 @@ import {
   type SlotQuantity,
 } from "../model/types";
 import { combinations } from "../model/expand";
-import type { Column } from "../schema/catalog";
+import type { Column } from "../model/column";
 import { ValueCondEditor, defaultCond } from "./value-cond-editor";
 import { RuleGroup } from "./rule-group";
 

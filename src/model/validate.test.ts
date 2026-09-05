@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { validateQuery } from "./validate";
 import { emptyQuery, type Query } from "./types";
-import type { Column } from "../schema/catalog";
+import type { Column } from "./column";
 
 const COLUMNS: Column[] = [
   { name: "ランク", type: "string", enum: ["勝利S", "敗北E"] },

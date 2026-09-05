@@ -1,5 +1,5 @@
 import type { OutputNode } from "../model/types";
-import type { Column } from "../schema/catalog";
+import type { Column } from "../model/column";
 import { ValueCondEditor, defaultCond } from "./value-cond-editor";
 import { SlotNodeEditor } from "./slot-node";
 import { DisplayItemNodeEditor } from "./display-item-node";
