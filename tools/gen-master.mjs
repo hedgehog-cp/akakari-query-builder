@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 // api_start2 のマスタから、クエリビルダーが使う項目だけを抜き出す。
-// .repositories/ はコミットされないので、再生成にはローカルのクローンが要る。
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
