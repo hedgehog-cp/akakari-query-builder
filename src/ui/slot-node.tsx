@@ -67,7 +67,6 @@ export function SlotNodeEditor(props: {
       <RuleGroup<SlotAttrCond>
         op="AND"
         opEditable={false}
-        emptyMessage="属性が設定されていません"
         children={node.attrs}
         depth={0}
         onChildrenChange={(attrs) => props.onChange({ ...node, attrs })}

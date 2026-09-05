@@ -51,7 +51,6 @@ export function DateSection(props: { ranges: DateRange[]; onChange: (r: DateRang
       <RuleGroup<DateRange>
         op="OR"
         opEditable={false}
-        emptyMessage={null}
         children={props.ranges}
         depth={0}
         onChildrenChange={props.onChange}

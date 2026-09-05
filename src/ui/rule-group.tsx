@@ -48,8 +48,6 @@ export function OpBadge(props: { op: GroupOp }) {
   );
 }
 
-const DEFAULT_EMPTY_MESSAGE = "空です。条件を追加するか削除してください";
-
 /** AND/OR/NOT でくくった子の並び。子の中身の描画は呼び出し側に任せる。 */
 export function RuleGroup<T>(props: {
   op: GroupOp;
@@ -77,9 +75,6 @@ export function RuleGroup<T>(props: {
   onChildEdit?: (prev: T, next: T) => void;
   /** false なら演算子を編集不可の静的バッジにする(日時のOR固定など)。既定 true。 */
   opEditable?: boolean;
-  /** 子が空のときの案内文。null で非表示(既定の空状態が正常な場合に使う)。
-   * 省略時は既定文言を表示する。 */
-  emptyMessage?: string | null;
   /** グループをまたいだ移動を許すときに渡す。省略時はこのリスト内の並べ替えだけ。 */
   dnd?: RuleDnd;
   /** ヘッダ行に追加ボタン群の後・空メッセージや✕ボタンの前に差し込む内容。
@@ -211,13 +206,6 @@ export function RuleGroup<T>(props: {
           </>
         )}
         {props.headerExtra}
-        {props.children.length === 0 &&
-          (props.emptyMessage === undefined ? DEFAULT_EMPTY_MESSAGE : props.emptyMessage) !==
-            null && (
-            <span class="text-xs text-red-600 whitespace-nowrap">
-              {props.emptyMessage === undefined ? DEFAULT_EMPTY_MESSAGE : props.emptyMessage}
-            </span>
-          )}
         {props.onRemove !== undefined && (
           <button
             type="button"
