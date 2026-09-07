@@ -95,6 +95,8 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
   anchorRef.current = anchor;
 
   const selectRow = useCallback((e: MouseEvent, index: number) => {
+    // 選んだ直後にそのまま写せるよう、表の枠へ焦点を移す。
+    scrollRef.current?.focus({ preventScroll: true });
     const additive = e.ctrlKey || e.metaKey;
     const anchorNow = anchorRef.current;
     const selectedNow = selectedRef.current;
@@ -204,6 +206,28 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
   useLayoutEffect(placeTip, [hovered, placeTip]);
   useLayoutEffect(syncWindow, [syncWindow]);
 
+  /** 選択行。選択が空のときは null を返し、呼び出し側で全件を使う。 */
+  const selectedRows = (): string[][] | null => {
+    if (done === null || selected.size === 0) return null;
+    return [...selected].sort((a, b) => a - b).map((i) => done.rows[i]);
+  };
+
+  /** 選択行にヘッダを付けた表。ダウンロードは付けたまま(読み込み直せる形を保つ)。 */
+  const headed = (rows: string[][], includeHeader: boolean): string[][] =>
+    includeHeader && done !== null ? [done.header, ...rows] : rows;
+
+  /** 表の中でのコピー。選択が無いときは何もしない(全件は取り出しのボタンで)。 */
+  const onCopyKey = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key !== "c" || !(e.ctrlKey || e.metaKey) || e.altKey) return;
+      const sel = selectedRows();
+      if (sel === null) return;
+      e.preventDefault();
+      copy(headed(sel, withHeader).map(formatTsvRow).join("\r\n"));
+    },
+    [done, selected, withHeader],
+  );
+
   // 表は数万セルあり、素直に書くと開閉やコピー通知など無関係な再描画のたびに
   // Preact がその全セルを差分計算してしまう。行データ・窓・選択が変わらない
   // 限り同じ vnode を返せば、Preact はその部分木の差分計算ごと省略する。
@@ -232,9 +256,12 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
       // 列が多いため横スクロールはこのコンテナだけが持つ(ページ全体を横に伸ばさない)。
       <div
         ref={scrollRef}
-        class="contain-layout overflow-auto max-h-[600px] border border-gray-300 rounded"
+        // 行を選んでそのまま写せるよう、枠自体に焦点を当てられるようにする。
+        tabIndex={0}
+        class="contain-layout overflow-auto max-h-[600px] border border-gray-300 rounded focus:outline-none focus-visible:border-emp-1"
         onWheel={scrollSideways}
         onScroll={onScroll}
+        onKeyDown={onCopyKey}
         onMouseMove={onMouseMove}
         onMouseLeave={clearHover}
       >
@@ -335,17 +362,7 @@ export function PreviewPane(props: { query: Query; columns: Column[] }) {
         )}
       </div>
     );
-  }, [done, colWidths, window_, selected, selectRow, onScroll, clearHover, onMouseMove]);
-
-  /** 選択行。選択が空のときは null を返し、呼び出し側で全件を使う。 */
-  const selectedRows = (): string[][] | null => {
-    if (done === null || selected.size === 0) return null;
-    return [...selected].sort((a, b) => a - b).map((i) => done.rows[i]);
-  };
-
-  /** 選択行にヘッダを付けた表。ダウンロードは付けたまま(読み込み直せる形を保つ)。 */
-  const headed = (rows: string[][], includeHeader: boolean): string[][] =>
-    includeHeader && done !== null ? [done.header, ...rows] : rows;
+  }, [done, colWidths, window_, selected, selectRow, onScroll, onCopyKey, clearHover, onMouseMove]);
 
   /** 全一致行の CSV。ヘッダを外すときは先頭の1行(と続く CRLF)だけを落とす。 */
   const allCsv = (includeHeader: boolean): string => {
