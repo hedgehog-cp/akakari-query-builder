@@ -21,6 +21,7 @@ export function TemplateDrawer(props: {
   const [renaming, setRenaming] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const renameInputRef = useRef<HTMLInputElement>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   // 開いている間は背面のページを固定する。
   useScrollLock(open);
@@ -37,6 +38,21 @@ export function TemplateDrawer(props: {
   useEffect(() => {
     if (renaming !== null) renameInputRef.current?.focus();
   }, [renaming]);
+
+  // 保存には名前が要るので、Ctrl+S は引き出しを開いて名前の欄へ移るところまでを担う。
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "s" || !(e.ctrlKey || e.metaKey) || e.altKey) return;
+      e.preventDefault();
+      setOpen(true);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  useEffect(() => {
+    if (open) nameInputRef.current?.focus();
+  }, [open]);
 
   const save = () => {
     const trimmed = name.trim();
@@ -85,11 +101,15 @@ export function TemplateDrawer(props: {
             </div>
             <div class="flex gap-1 mb-3 text-xs">
               <input
+                ref={nameInputRef}
                 type="text"
                 class="border border-gray-300 rounded px-2 py-0.5 flex-1"
                 placeholder="テンプレート名"
                 value={name}
                 onInput={(e) => setName((e.target as HTMLInputElement).value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") save();
+                }}
               />
               <button
                 type="button"
