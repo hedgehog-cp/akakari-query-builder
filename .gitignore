@@ -3,3 +3,4 @@ dist/
 .repositories/
 .env.local
 .vscode/
+.sample/
